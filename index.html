@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Capture Utility</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #2c3e50);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 800px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 80vh;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3498db, #1abc9c);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+        
+        .logo-text {
+            font-weight: 600;
+            font-size: 22px;
+            letter-spacing: 0.5px;
+        }
+        
+        .logo-text span {
+            color: #1abc9c;
+            font-weight: 300;
+        }
+        
+        .content {
+            padding: 30px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .camera-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .permission-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .permission-icon {
+            font-size: 48px;
+            color: #3498db;
+        }
+        
+        .permission-text {
+            font-size: 18px;
+            line-height: 1.6;
+            max-width: 500px;
+        }
+        
+        .permission-text h2 {
+            margin-bottom: 15px;
+            color: #3498db;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #2980b9, #3498db);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .btn-capture {
+            background: linear-gradient(135deg, #1abc9c, #16a085);
+        }
+        
+        .btn-capture:hover {
+            background: linear-gradient(135deg, #16a085, #1abc9c);
+        }
+        
+        .btn-send {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        
+        .btn-send:hover {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+        }
+        
+        .preview-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        #video-preview {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            border-radius: 12px;
+            background: #000;
+            transform: scaleX(-1); /* Mirror the video */
+        }
+        
+        .captured-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        #captured-image {
+            width: 100%;
+            max-height: 60vh;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            padding-top: 20px;
+        }
+        
+        .status {
+            padding: 15px;
+            text-align: center;
+            font-size: 14px;
+            color: #95a5a6;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .status-icon {
+            margin-right: 8px;
+        }
+        
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .camera-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .camera-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .camera-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .camera-btn.active {
+            background: #3498db;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            .container {
+                min-height: 90vh;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .permission-panel {
+                padding: 20px;
+            }
+            
+            .btn {
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">📷</div>
+                <div class="logo-text">Capture<span>Utility</span></div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="camera-container">
+                <div class="permission-panel" id="permission-panel">
+                    <div class="permission-icon">📷</div>
+                    <div class="permission-text">
+                        <h2>Camera Access Required</h2>
+                        <p>To use this document capture utility, please allow camera access when prompted. We need this to display a live preview from your camera for capturing documents or images.</p>
+                        <p>Your privacy is important - camera access is only used for preview and capture. No images are stored without your explicit action.</p>
+                    </div>
+                    <button class="btn" id="enable-camera-btn">
+                        Enable Camera Access
+                    </button>
+                </div>
+                
+                <div class="preview-container" id="preview-container" style="display: none;">
+                    <div class="camera-selector" id="camera-selector"></div>
+                    <video id="video-preview" autoplay playsinline></video>
+                    <div class="controls">
+                        <button class="btn btn-capture" id="capture-btn">
+                            <span class="icon">📸</span> Capture Image
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="captured-container" id="captured-container">
+                    <img id="captured-image" alt="Captured image">
+                    <div class="action-buttons">
+                        <button class="btn" id="retake-btn">
+                            <span class="icon">🔄</span> Retake
+                        </button>
+                        <button class="btn btn-send" id="send-btn">
+                            <span class="icon">✉️</span> Send to Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status">
+            <span class="status-icon">ℹ️</span> 
+            <span id="status-text">Ready to capture documents</span>
+        </div>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const permissionPanel = document.getElementById('permission-panel');
+        const previewContainer = document.getElementById('preview-container');
+        const capturedContainer = document.getElementById('captured-container');
+        const videoPreview = document.getElementById('video-preview');
+        const capturedImage = document.getElementById('captured-image');
+        const enableCameraBtn = document.getElementById('enable-camera-btn');
+        const captureBtn = document.getElementById('capture-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const statusText = document.getElementById('status-text');
+        const cameraSelector = document.getElementById('camera-selector');
+        
+        // State variables
+        let stream = null;
+        let cameras = [];
+        let currentCamera = null;
+        
+        // Initialize the application
+        function init() {
+            // Event listeners
+            enableCameraBtn.addEventListener('click', requestCameraAccess);
+            captureBtn.addEventListener('click', captureImage);
+            retakeBtn.addEventListener('click', retakePhoto);
+            sendBtn.addEventListener('click', sendToEmail);
+            
+            // Check if we already have camera access
+            checkExistingPermissions();
+        }
+        
+        // Check if we already have camera permissions
+        async function checkExistingPermissions() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                if (videoDevices.length > 0) {
+                    // We have devices, which usually means we have permission
+                    statusText.textContent = 'Loading cameras...';
+                    setupCameras();
+                }
+            } catch (error) {
+                console.error('Error checking permissions:', error);
+            }
+        }
+        
+        // Request camera access
+        async function requestCameraAccess() {
+            statusText.textContent = 'Requesting camera access...';
+            
+            try {
+                // First get permission without specifying camera to get access
+                const tempStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                // Stop the temporary stream
+                tempStream.getTracks().forEach(track => track.stop());
+                
+                // Now enumerate devices and setup cameras
+                await setupCameras();
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                statusText.textContent = 'Camera access denied. Please enable camera permissions in your browser settings.';
+            }
+        }
+        
+        // Setup available cameras
+        async function setupCameras() {
+            try {
+                // Enumerate available cameras
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cameras = devices.filter(device => device.kind === 'videoinput');
+                
+                if (cameras.length === 0) {
+                    statusText.textContent = 'No cameras found.';
+                    return;
+                }
+                
+                // Create camera selection buttons
+                cameraSelector.innerHTML = '';
+                cameras.forEach((camera, index) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'camera-btn';
+                    btn.textContent = camera.label || `Camera ${index + 1}`;
+                    btn.dataset.deviceId = camera.deviceId;
+                    
+                    // Determine if this is a back camera
+                    if (camera.label.toLowerCase().includes('back') || 
+                        camera.label.toLowerCase().includes('rear') ||
+                        (!camera.label && cameras.length > 1 && index === 0)) {
+                        btn.textContent = '📷 Rear Camera';
+                        if (!currentCamera) currentCamera = camera.deviceId;
+                    } else if (camera.label.toLowerCase().includes('front') || 
+                              (!camera.label && cameras.length > 1 && index === 1)) {
+                        btn.textContent = '📱 Front Camera';
+                    }
+                    
+                    btn.addEventListener('click', () => switchCamera(camera.deviceId));
+                    cameraSelector.appendChild(btn);
+                });
+                
+                // Show preview
+                permissionPanel.style.display = 'none';
+                previewContainer.style.display = 'flex';
+                
+                // Start with the first camera (usually back camera)
+                if (currentCamera) {
+                    startCamera(currentCamera);
+                } else {
+                    startCamera(cameras[0].deviceId);
+                }
+                
+                statusText.textContent = 'Camera ready. Point at your document.';
+            } catch (error) {
+                console.error('Error setting up cameras:', error);
+                statusText.textContent = 'Error accessing cameras. Please refresh the page.';
+            }
+        }
+        
+        // Start camera with specified device ID
+        async function startCamera(deviceId) {
+            // Stop any existing stream
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            try {
+                // Set active button
+                document.querySelectorAll('.camera-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.deviceId === deviceId);
+                });
+                
+                // Start new stream
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        deviceId: { exact: deviceId },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                
+                // Set video source
+                videoPreview.srcObject = stream;
+                currentCamera = deviceId;
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                statusText.textContent = 'Error starting camera. Please try another camera.';
+            }
+        }
+        
+        // Switch to a different camera
+        function switchCamera(deviceId) {
+            startCamera(deviceId);
+        }
+        
+        // Capture an image from the video stream
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoPreview.videoWidth;
+            canvas.height = videoPreview.videoHeight;
+            
+            const context = canvas.getContext('2d');
+            
+            // Flip the image horizontally to match the video preview
+            context.translate(canvas.width, 0);
+            context.scale(-1, 1);
+            
+            context.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
+            
+            // Get the image as data URL
+            const imageDataUrl = canvas.toDataURL('image/png');
+            capturedImage.src = imageDataUrl;
+            
+            // Show captured image and hide preview
+            previewContainer.style.display = 'none';
+            capturedContainer.style.display = 'flex';
+            
+            statusText.textContent = 'Image captured. Ready to send.';
+        }
+        
+        // Retake photo
+        function retakePhoto() {
+            capturedContainer.style.display = 'none';
+            previewContainer.style.display = 'flex';
+            statusText.textContent = 'Camera ready. Point at your document.';
+        }
+        
+        // Send image to email
+        async function sendToEmail(aounahmed4300@gmail.com) {
+            statusText.textContent = 'Sending image...';
+            sendBtn.disabled = true;
+            
+            // In a real application, this would send the image to a backend
+            // that would handle email delivery. For demo purposes, we simulate
+            // the network request with a timeout.
+            
+            try {
+                // Get the image data
+                const imageData = capturedImage.src;
+                
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Simulate success response
+                statusText.textContent = 'Image sent successfully!';
+                
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    retakePhoto();
+                    sendBtn.disabled = false;
+                    statusText.textContent = 'Ready to capture documents';
+                }, 3000);
+            } catch (error) {
+                console.error('Error sending image:', error);
+                statusText.textContent = 'Failed to send image. Please try again.';
+                sendBtn.disabled = false;
+            }
+        }
+        
+        // Initialize the app when the page loads
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
