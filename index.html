@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ledger App</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>📒 Ledger</h1>
+
+  <nav>
+    <button onclick="showPage('accounts')">Accounts</button>
+    <button onclick="showPage('entry')">New Entry</button>
+    <button onclick="showPage('transfer')">Transfer</button>
+    <button onclick="showPage('report')">Reports</button>
+  </nav>
+
+  <section id="accounts" class="page">
+    <h2>Accounts</h2>
+    <form onsubmit="addAccount(event)">
+      <input type="text" id="accName" placeholder="Account name" required>
+      <input type="number" id="accOpening" placeholder="Opening balance" value="0">
+      <button type="submit">Add Account</button>
+    </form>
+    <div id="accountsList"></div>
+  </section>
+
+  <section id="entry" class="page hidden">
+    <h2>New Entry</h2>
+    <form onsubmit="addTransaction(event)">
+      <input type="date" id="txnDate" required>
+      <select id="txnAccount"></select>
+      <select id="txnType">
+        <option value="CR">Credit</option>
+        <option value="DR">Debit</option>
+      </select>
+      <input type="number" id="txnAmount" placeholder="Amount" required>
+      <input type="text" id="txnCategory" placeholder="Category">
+      <input type="text" id="txnNote" placeholder="Note">
+      <button type="submit">Save</button>
+    </form>
+  </section>
+
+  <section id="transfer" class="page hidden">
+    <h2>Transfer</h2>
+    <form onsubmit="doTransfer(event)">
+      <select id="fromAcc"></select>
+      <select id="toAcc"></select>
+      <input type="number" id="transferAmount" placeholder="Amount" required>
+      <input type="text" id="transferNote" placeholder="Note">
+      <button type="submit">Transfer</button>
+    </form>
+  </section>
+
+  <section id="report" class="page hidden">
+    <h2>Reports</h2>
+    <form onsubmit="loadReport(event)">
+      <label>From: <input type="date" id="reportFrom"></label>
+      <label>To: <input type="date" id="reportTo"></label>
+      <button type="submit">Load</button>
+    </form>
+    <table id="reportTable">
+      <thead><tr><th>Voucher</th><th>Date</th><th>Account</th><th>Type</th><th>Amount</th><th>Category</th><th>Note</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
