@@ -16,18 +16,26 @@ async function api(path, method="GET", data=null) {
     method,
     headers: { 
       "Content-Type": "application/json",
-      "x-api-key": API_KEY   // send key in header
+      "x-api-key": API_KEY
     }
   };
   if (method !== "GET") {
     opts.body = JSON.stringify(data);
   } else {
-    // append key for GET too
     url += `?x-api-key=${API_KEY}`;
   }
+
+  console.log("Fetching:", url, opts);  // 🟢 Debug log
   let res = await fetch(url, opts);
-  return res.json();
+  let text = await res.text();  // get raw text
+  console.log("Raw response:", text);  // 🟢 Debug log
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error("Invalid JSON: " + text);
+  }
 }
+
 
 // ======= ACCOUNTS =======
 async function addAccount(e) {
@@ -98,3 +106,4 @@ async function loadReport(e) {
     <td>${t.note}</td>
   </tr>`).join("");
 }
+
