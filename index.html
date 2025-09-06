@@ -1,16 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>My Ledger System</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Ledger System</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="app"></div>
+  <div id="auth-section">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="signup()">Sign Up</button>
+  </div>
 
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <div id="app-section" style="display:none;">
+    <h1>📒 Personal Ledger</h1>
+    <button onclick="logout()">Logout</button>
+
+    <h2>Create Account</h2>
+    <input type="text" id="account-name" placeholder="Account Name">
+    <button onclick="createAccount()">Add Account</button>
+    <ul id="accounts-list"></ul>
+
+    <h2>Create Voucher</h2>
+    <input type="number" id="voucher-amount" placeholder="Amount">
+    <select id="voucher-type">
+      <option value="debit">Debit</option>
+      <option value="credit">Credit</option>
+    </select>
+    <select id="voucher-account"></select>
+    <button onclick="createVoucher()">Add Voucher</button>
+
+    <h2>Reports</h2>
+    <button onclick="loadBalances()">Show Account Balances</button>
+    <ul id="balances-list"></ul>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
   <script src="app.js"></script>
 </body>
 </html>
