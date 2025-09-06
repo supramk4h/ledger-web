@@ -7,38 +7,63 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Authentication -->
   <div id="auth-section">
-    <h2>Login</h2>
+    <h2>🔐 Login</h2>
     <input type="email" id="email" placeholder="Email">
     <input type="password" id="password" placeholder="Password">
     <button onclick="login()">Login</button>
     <button onclick="signup()">Sign Up</button>
   </div>
 
+  <!-- App -->
   <div id="app-section" style="display:none;">
-    <h1>📒 Personal Ledger</h1>
-    <button onclick="logout()">Logout</button>
+    <header>
+      <h1>📒 Personal Ledger</h1>
+      <button onclick="logout()">Logout</button>
+    </header>
 
-    <h2>Create Account</h2>
-    <input type="text" id="account-name" placeholder="Account Name">
-    <button onclick="createAccount()">Add Account</button>
-    <ul id="accounts-list"></ul>
+    <main>
+      <!-- Accounts -->
+      <section>
+        <h2>Accounts</h2>
+        <input type="text" id="account-name" placeholder="Account Name">
+        <button onclick="createAccount()">➕ Add Account</button>
+        <ul id="accounts-list"></ul>
+      </section>
 
-    <h2>Create Voucher</h2>
-    <input type="number" id="voucher-amount" placeholder="Amount">
-    <select id="voucher-type">
-      <option value="debit">Debit</option>
-      <option value="credit">Credit</option>
-    </select>
-    <select id="voucher-account"></select>
-    <button onclick="createVoucher()">Add Voucher</button>
+      <!-- Vouchers -->
+      <section>
+        <h2>Vouchers</h2>
+        <input type="number" id="voucher-amount" placeholder="Amount">
+        <select id="voucher-type">
+          <option value="debit">Debit</option>
+          <option value="credit">Credit</option>
+        </select>
+        <select id="voucher-account"></select>
+        <button onclick="createVoucher()">➕ Add Voucher</button>
+        <ul id="vouchers-list"></ul>
+      </section>
 
-    <h2>Reports</h2>
-    <button onclick="loadBalances()">Show Account Balances</button>
-    <ul id="balances-list"></ul>
+      <!-- Reports -->
+      <section>
+        <h2>Reports</h2>
+        <button onclick="loadBalances()">Trial Balance</button>
+        <button onclick="exportPDF()">Export PDF</button>
+        <button onclick="exportExcel()">Export Excel</button>
+        <ul id="balances-list"></ul>
+        <canvas id="report-chart"></canvas>
+      </section>
+    </main>
   </div>
 
+  <!-- External libraries -->
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <script src="libs/jspdf.min.js"></script>
+  <script src="libs/xlsx.full.min.js"></script>
+
+  <!-- App scripts -->
   <script src="app.js"></script>
+  <script src="reports.js"></script>
 </body>
 </html>
