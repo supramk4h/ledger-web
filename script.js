@@ -3,7 +3,13 @@
 // -----------------------
 const SUPABASE_URL = 'https://ipwizsmijenwycudxfny.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwd2l6c21pamVud3ljdWR4Zm55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyMjQ3OTIsImV4cCI6MjA3MjgwMDc5Mn0.nkS0G4KiQum6IVEgZdQlPXoGrCY5n2JpZdsE-KFgr5U';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let supabase;
+try {
+  supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (err) {
+  console.error("Supabase library not loaded. Make sure you included it in HTML.", err);
+}
 
 // -----------------------
 // TAB SWITCHING
@@ -11,18 +17,20 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const tabs = document.querySelectorAll(".tab");
 const tabContents = document.querySelectorAll(".tab-content");
 
-tabs.forEach(tab => {
-  tab.addEventListener("click", () => {
-    tabs.forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
+if (tabs.length && tabContents.length) {
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
 
-    const target = tab.dataset.tab;
-    tabContents.forEach(tc => {
-      tc.classList.remove("active");
-      if (tc.id === target) tc.classList.add("active");
+      const target = tab.dataset.tab;
+      tabContents.forEach(tc => {
+        tc.classList.remove("active");
+        if (tc.id === target) tc.classList.add("active");
+      });
     });
   });
-});
+}
 
 // -----------------------
 // GLOBAL ARRAYS
@@ -37,18 +45,18 @@ const accountForm = document.getElementById("account-form");
 const accountsTableBody = document.querySelector("#accounts-table tbody");
 const transAccountSelect = document.getElementById("trans-account");
 
-// Load accounts from Supabase
 async function loadAccounts() {
+  if (!supabase) return;
   const { data, error } = await supabase.from("accounts").select("*").order("id");
-  if (error) return console.error(error);
+  if (error) return console.error("Error loading accounts:", error);
 
   accounts = data;
   renderAccounts();
   populateAccountsDropdown();
 }
 
-// Render accounts table
 function renderAccounts() {
+  if (!accountsTableBody) return;
   accountsTableBody.innerHTML = "";
   accounts.forEach(acc => {
     const row = document.createElement("tr");
@@ -65,8 +73,8 @@ function renderAccounts() {
   });
 }
 
-// Populate account dropdown in transactions form
 function populateAccountsDropdown() {
+  if (!transAccountSelect) return;
   transAccountSelect.innerHTML = `<option value="">Select Account</option>`;
   accounts.forEach(acc => {
     const option = document.createElement("option");
@@ -76,41 +84,24 @@ function populateAccountsDropdown() {
   });
 }
 
-// Add new account
-accountForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const name = document.getElementById("account-name").value.trim();
-  const type = document.getElementById("account-type").value;
-  const balance = parseFloat(document.getElementById("account-amount").value) || 0;
+if (accountForm) {
+  accountForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nameInput = document.getElementById("account-name");
+    const typeInput = document.getElementById("account-type");
+    const balanceInput = document.getElementById("account-amount");
 
-  if (!name || !type) return alert("Enter account name and type.");
+    const name = nameInput.value.trim();
+    const type = typeInput.value;
+    const balance = parseFloat(balanceInput.value) || 0;
 
-  const { error } = await supabase.from("accounts").insert([{ name, type, balance }]);
-  if (error) return console.error(error);
+    if (!name || !type) return alert("Enter account name and type.");
+    const { error } = await supabase.from("accounts").insert([{ name, type, balance }]);
+    if (error) return console.error("Error adding account:", error);
 
-  accountForm.reset();
-  loadAccounts();
-});
-
-// Edit account
-async function editAccount(id) {
-  const acc = accounts.find(a => a.id === id);
-  const newName = prompt("Edit Account Name:", acc.name);
-  const newType = prompt("Edit Account Type (Asset/Liability/Income/Expense):", acc.type);
-  if (newName && newType) {
-    const { error } = await supabase.from("accounts").update({ name: newName, type: newType }).eq("id", id);
-    if (error) return console.error(error);
+    accountForm.reset();
     loadAccounts();
-  }
-}
-
-// Delete account
-async function deleteAccount(id) {
-  if (confirm("Delete this account?")) {
-    const { error } = await supabase.from("accounts").delete().eq("id", id);
-    if (error) return console.error(error);
-    loadAccounts();
-  }
+  });
 }
 
 // -----------------------
@@ -120,16 +111,17 @@ const transactionForm = document.getElementById("transaction-form");
 const transactionsTableBody = document.querySelector("#transactions-table tbody");
 const voucherInput = document.getElementById("voucher-no");
 
-// Load transactions
 async function loadTransactions() {
+  if (!supabase) return;
   const { data, error } = await supabase.from("transactions").select("*").order("id");
-  if (error) return console.error(error);
+  if (error) return console.error("Error loading transactions:", error);
+
   transactions = data;
   renderTransactions();
 }
 
-// Render transactions table
 function renderTransactions() {
+  if (!transactionsTableBody) return;
   transactionsTableBody.innerHTML = "";
   transactions.forEach(tr => {
     const acc = accounts.find(a => a.id === tr.account_id);
@@ -150,100 +142,39 @@ function renderTransactions() {
   });
 }
 
-// Add transaction
-transactionForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const date = document.getElementById("trans-date").value;
-  const accountId = parseInt(transAccountSelect.value);
-  const narration = document.getElementById("trans-narration").value.trim();
-  const credit = parseFloat(document.getElementById("trans-cr").value) || 0;
-  const debit = parseFloat(document.getElementById("trans-dr").value) || 0;
+if (transactionForm) {
+  transactionForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const date = document.getElementById("trans-date").value;
+    const accountId = parseInt(transAccountSelect.value);
+    const narration = document.getElementById("trans-narration").value.trim();
+    const credit = parseFloat(document.getElementById("trans-cr").value) || 0;
+    const debit = parseFloat(document.getElementById("trans-dr").value) || 0;
 
-  if (!date || !accountId) return alert("Select date and account.");
+    if (!date || !accountId) return alert("Select date and account.");
 
-  const voucher = `VCH-${transactions.length + 1}`;
-  voucherInput.value = voucher;
+    const voucher = `VCH-${transactions.length + 1}`;
+    if (voucherInput) voucherInput.value = voucher;
 
-  // Insert transaction
-  const { error } = await supabase.from("transactions").insert([{
-    voucher, date, account_id: accountId, narration, credit, debit
-  }]);
-  if (error) return console.error(error);
+    const { error } = await supabase.from("transactions").insert([{
+      voucher, date, account_id: accountId, narration, credit, debit
+    }]);
+    if (error) return console.error("Error adding transaction:", error);
 
-  // Update account balance
-  const acc = accounts.find(a => a.id === accountId);
-  const newBalance = acc.balance + debit - credit;
-  await supabase.from("accounts").update({ balance: newBalance }).eq("id", accountId);
+    const acc = accounts.find(a => a.id === accountId);
+    const newBalance = acc.balance + debit - credit;
+    await supabase.from("accounts").update({ balance: newBalance }).eq("id", accountId);
 
-  transactionForm.reset();
-  voucherInput.value = "";
-  loadAccounts();
-  loadTransactions();
-});
-
-// Edit transaction
-async function editTransaction(id) {
-  const tr = transactions.find(t => t.id === id);
-  const newCredit = parseFloat(prompt("Edit Credit Amount:", tr.credit)) || 0;
-  const newDebit = parseFloat(prompt("Edit Debit Amount:", tr.debit)) || 0;
-
-  const acc = accounts.find(a => a.id === tr.account_id);
-  const oldBalance = acc.balance - (tr.debit - tr.credit);
-  const newBalance = oldBalance + (newDebit - newCredit);
-
-  // Update transaction
-  const { error } = await supabase.from("transactions").update({ credit: newCredit, debit: newDebit }).eq("id", id);
-  if (error) return console.error(error);
-
-  // Update account balance
-  await supabase.from("accounts").update({ balance: newBalance }).eq("id", acc.id);
-
-  loadAccounts();
-  loadTransactions();
-}
-
-// Delete transaction
-async function deleteTransaction(id) {
-  const tr = transactions.find(t => t.id === id);
-  if (confirm("Delete this transaction?")) {
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
-    if (error) return console.error(error);
-
-    // Update account balance
-    const acc = accounts.find(a => a.id === tr.account_id);
-    const newBalance = acc.balance - (tr.debit - tr.credit);
-    await supabase.from("accounts").update({ balance: newBalance }).eq("id", acc.id);
-
+    transactionForm.reset();
+    if (voucherInput) voucherInput.value = "";
     loadAccounts();
     loadTransactions();
-  }
+  });
 }
 
 // -----------------------
-// REPORTS & CSV EXPORT
+// REPORTS / CSV BACKUP (optional)
 // -----------------------
-async function exportAccountsCSV() {
-  const { data: accountsData, error } = await supabase.from("accounts").select("*").order("id");
-  if (error) return console.error(error);
-
-  let csv = "id,name,type,balance,created_at\n";
-  accountsData.forEach(acc => {
-    csv += `${acc.id},"${acc.name}",${acc.type},${acc.balance},${acc.created_at}\n`;
-  });
-  downloadCSV("accounts_backup.csv", csv);
-}
-
-async function exportTransactionsCSV() {
-  const { data: transactionsData, error } = await supabase.from("transactions").select("*").order("id");
-  if (error) return console.error(error);
-
-  let csv = "id,voucher,date,account_id,narration,credit,debit,created_at\n";
-  transactionsData.forEach(tr => {
-    csv += `${tr.id},${tr.voucher},${tr.date},${tr.account_id},"${tr.narration}",${tr.credit},${tr.debit},${tr.created_at}\n`;
-  });
-  downloadCSV("transactions_backup.csv", csv);
-}
-
 function downloadCSV(filename, csvContent) {
   const blob = new Blob([csvContent], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
@@ -254,16 +185,32 @@ function downloadCSV(filename, csvContent) {
   URL.revokeObjectURL(url);
 }
 
-// Export button
-document.getElementById("export-csv-btn").addEventListener("click", async () => {
-  await exportAccountsCSV();
-  await exportTransactionsCSV();
-});
+const exportBtn = document.getElementById("export-csv-btn");
+if (exportBtn) {
+  exportBtn.addEventListener("click", async () => {
+    if (!supabase) return;
+
+    const { data: accountsData } = await supabase.from("accounts").select("*").order("id");
+    let csvAccounts = "id,name,type,balance,created_at\n";
+    accountsData.forEach(acc => {
+      csvAccounts += `${acc.id},"${acc.name}",${acc.type},${acc.balance},${acc.created_at}\n`;
+    });
+    downloadCSV("accounts_backup.csv", csvAccounts);
+
+    const { data: transactionsData } = await supabase.from("transactions").select("*").order("id");
+    let csvTrans = "id,voucher,date,account_id,narration,credit,debit,created_at\n";
+    transactionsData.forEach(tr => {
+      csvTrans += `${tr.id},${tr.voucher},${tr.date},${tr.account_id},"${tr.narration}",${tr.credit},${tr.debit},${tr.created_at}\n`;
+    });
+    downloadCSV("transactions_backup.csv", csvTrans);
+  });
+}
 
 // -----------------------
 // INITIAL LOAD
 // -----------------------
 window.addEventListener("load", async () => {
+  if (!supabase) return;
   await loadAccounts();
   await loadTransactions();
 });
