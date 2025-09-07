@@ -5,10 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Professional Ledger - Firebase</title>
 
-<!-- jsPDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
 <style>
 :root {
     --ruler: 18px;
@@ -406,6 +402,43 @@ document.getElementById('exportPLPDF').addEventListener('click', ()=>{
     doc.autoTable({ head:[['Account','DR','CR','Net']], body, startY:20, theme:'grid' });
     doc.save('ProfitLoss.pdf');
 });
+import jsPDF from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+import autoTable from 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.es.min.js';
+// Trial Balance PDF
+document.getElementById('exportTrialPDF').addEventListener('click', ()=>{
+    const doc = new jsPDF();
+    doc.text('Trial Balance', 105, 10, { align: 'center' });
+
+    const body = Array.from(document.querySelectorAll('#trialBalanceTable tbody tr'))
+        .map(tr => Array.from(tr.children).map(td => td.textContent));
+
+    autoTable(doc, { head:[['Account','DR','CR','Closing']], body, startY: 20, theme:'grid' });
+    doc.save('TrialBalance.pdf');
+});
+
+// Transactions Report PDF
+document.getElementById('exportReportPDF').addEventListener('click', ()=>{
+    const doc = new jsPDF();
+    doc.text('Transactions Report', 105, 10, { align: 'center' });
+
+    const body = Array.from(document.querySelectorAll('#reportPreview tbody tr'))
+        .map(tr => Array.from(tr.children).map(td => td.textContent));
+
+    autoTable(doc, { head:[['Voucher','Date','Narration','Entries']], body, startY: 20, theme:'grid' });
+    doc.save('TransactionsReport.pdf');
+});
+
+// Profit & Loss PDF
+document.getElementById('exportPLPDF').addEventListener('click', ()=>{
+    const doc = new jsPDF();
+    doc.text('Profit & Loss', 105, 10, { align: 'center' });
+
+    const body = Array.from(document.querySelectorAll('#profitLossTable tbody tr'))
+        .map(tr => Array.from(tr.children).map(td => td.textContent));
+
+    autoTable(doc, { head:[['Account','DR','CR','Net']], body, startY: 20, theme:'grid' });
+    doc.save('ProfitLoss.pdf');
+});
 
 // Real-time render triggers
 setInterval(()=>{ renderTrialBalance(); renderPL(); },1000);
@@ -413,3 +446,4 @@ setInterval(()=>{ renderTrialBalance(); renderPL(); },1000);
 </script>
 </body>
 </html>
+
