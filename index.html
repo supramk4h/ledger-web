@@ -162,6 +162,8 @@ To: <input type="date" id="reportTo">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getFirestore, collection, getDocs, setDoc, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+import "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js";
 
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -173,7 +175,6 @@ const firebaseConfig = {
   appId: "1:555377240895:web:90937044fac6d5a832018a",
   measurementId: "G-872C8RDS4Y"
 };
-
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
@@ -185,48 +186,23 @@ let undoStack = [];
 let redoStack = [];
 
 // ===== FIRESTORE CRUD =====
-async function saveAccount(acc){
-  await setDoc(doc(db,"accounts",acc.id), acc);
-}
-async function saveTransaction(tx){
-  await setDoc(doc(db,"transactions",tx.id), tx);
-}
-async function deleteAccountFirestore(id){
-  await deleteDoc(doc(db,"accounts",id));
-}
-async function deleteTransactionFirestore(id){
-  await deleteDoc(doc(db,"transactions",id));
-}
+async function saveAccount(acc){ await setDoc(doc(db,"accounts",acc.id), acc); }
+async function saveTransaction(tx){ await setDoc(doc(db,"transactions",tx.id), tx); }
+async function deleteAccountFirestore(id){ await deleteDoc(doc(db,"accounts",id)); }
+async function deleteTransactionFirestore(id){ await deleteDoc(doc(db,"transactions",id)); }
 
 async function loadData(){
-  accounts = [];
-  transactions = [];
-
+  accounts = []; transactions = [];
   const accSnap = await getDocs(collection(db,"accounts"));
   accSnap.forEach(d=>accounts.push(d.data()));
-
   const txSnap = await getDocs(collection(db,"transactions"));
   txSnap.forEach(d=>transactions.push(d.data()));
-
-  renderAccounts();
-  renderTransactions();
-  generateTrialBalance();
-  generateProfitLoss();
-  updateDashboard();
+  renderAccounts(); renderTransactions(); generateTrialBalance(); generateProfitLoss(); updateDashboard();
 }
 
 // ===== HELPER FUNCTIONS =====
-function generateId(prefix,arr){
-  return prefix+(arr.length>0?Math.max(...arr.map(a=>parseInt(a.id.replace(prefix,''))))+1:1001);
-}
-function getKarachiTime(){
-  const now = new Date();
-  const offset=5*60; 
-  const localOffset=now.getTimezoneOffset(); 
-  const utc = now.getTime()+localOffset*60*1000;
-  const dt = new Date(utc+offset*60*1000);
-  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')+':'+String(dt.getSeconds()).padStart(2,'0');
-}
+function generateId(prefix,arr){ return prefix+(arr.length>0?Math.max(...arr.map(a=>parseInt(a.id.replace(prefix,''))))+1:1001); }
+function getKarachiTime(){ const now=new Date(); const offset=5*60; const localOffset=now.getTimezoneOffset(); const utc=now.getTime()+localOffset*60*1000; const dt=new Date(utc+offset*60*1000); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0')+':'+String(dt.getSeconds()).padStart(2,'0'); }
 
 // ===== TABS =====
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -387,6 +363,63 @@ function updateDashboard(){
   document.getElementById('alerts').innerHTML=alerts.join('<br>');
 }
 
+// ===== TRIAL BALANCE =====
+function generateTrialBalance(search=''){
+  const tbody=document.querySelector('#trialBalanceTable tbody'); tbody.innerHTML='';
+  accounts.filter(a=>a.name.toLowerCase().includes(search.toLowerCase()))
+    .forEach(acc=>{
+      const totalDR=transactions.reduce((s,t)=>s+t.entries.filter(e=>e.accountId===acc.id && e.type==='DR').reduce((a,b)=>a+b.amount,0),0);
+      const totalCR=transactions.reduce((s,t)=>s+t.entries.filter(e=>e.accountId===acc.id && e.type==='CR').reduce((a,b)=>a+b.amount,0),0);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${acc.name}</td><td>${totalDR.toFixed(2)}</td><td>${totalCR.toFixed(2)}</td><td>${acc.balance.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    });
+}
+document.getElementById('trialSearch').addEventListener('input',e=>generateTrialBalance(e.target.value));
+document.getElementById('exportTrialPDF').addEventListener('click',()=>exportTablePDF('Trial Balance','trialBalanceTable','TrialBalance.pdf'));
+
+// ===== PROFIT & LOSS =====
+function generateProfitLoss(){
+  const tbody=document.querySelector('#profitLossTable tbody'); tbody.innerHTML='';
+  accounts.filter(a=>['Income','Expense'].includes(a.type))
+    .forEach(acc=>{
+      const totalDR=transactions.reduce((s,t)=>s+t.entries.filter(e=>e.accountId===acc.id && e.type==='DR').reduce((a,b)=>a+b.amount,0),0);
+      const totalCR=transactions.reduce((s,t)=>s+t.entries.filter(e=>e.accountId===acc.id && e.type==='CR').reduce((a,b)=>a+b.amount,0),0);
+      let net=acc.type==='Income'?totalCR-totalDR:totalDR-totalCR;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${acc.name}</td><td>${totalDR.toFixed(2)}</td><td>${totalCR.toFixed(2)}</td><td>${net.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    });
+}
+document.getElementById('exportPLPDF').addEventListener('click',()=>exportTablePDF('Profit & Loss','profitLossTable','ProfitLoss.pdf'));
+
+// ===== REPORTS =====
+document.getElementById('generateReportBtn').addEventListener('click',()=>{
+  const accountId=document.getElementById('reportAccount').value;
+  const fromDate=document.getElementById('reportFrom').value;
+  const toDate=document.getElementById('reportTo').value;
+  const tbody=document.querySelector('#reportPreview tbody'); tbody.innerHTML='';
+  transactions.filter(t=>{
+    const tDate=t.date.split(' ')[0];
+    const inDateRange=(!fromDate||tDate>=fromDate)&&(!toDate||tDate<=toDate);
+    const inAccount=!accountId||t.entries.some(e=>e.accountId===accountId);
+    return inDateRange && inAccount;
+  }).forEach(tx=>{
+    const entriesHtml=tx.entries.map(e=>`${e.accountName}(${e.type}:${e.amount.toFixed(2)})`).join('<br>');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${tx.id}</td><td>${tx.date}</td><td>${tx.narration}</td><td>${entriesHtml}</td><td>${tx.totalDR.toFixed(2)}</td><td>${tx.totalCR.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  });
+});
+
+// ===== PDF EXPORT =====
+function exportTablePDF(title,tableId,filename){
+  const doc = new jsPDF();
+  doc.text(title,14,20);
+  doc.autoTable({ html:'#'+tableId, startY:30, theme:'grid' });
+  doc.save(filename);
+}
+
 // ===== SEARCH =====
 document.getElementById('accountSearch').addEventListener('input',e=>renderAccounts(e.target.value));
 document.getElementById('transactionSearch').addEventListener('input',e=>renderTransactions(e.target.value));
@@ -397,3 +430,4 @@ loadData();
 
 </body>
 </html>
+
