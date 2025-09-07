@@ -242,7 +242,7 @@ function renderTransactions(search='') {
     transactions.filter(t=>t.narration.toLowerCase().includes(search.toLowerCase())).forEach(tx=>{
         const entriesHtml = tx.entries.map(e=>`${e.accountName}(${e.type}:${e.amount.toFixed(2)})`).join('<br>');
         const tr = document.createElement('tr');
-        tr.innerHTML=`<td>${tx.id}</td><td>${tx.date}</td><td>${tx.narration}</td><td>${entriesHtml}</td><td>${tx.totalCR.toFixed(2)}</td><td>${tx.totalDR.toFixed(2)}</td>`;
+        tr.innerHTML=`<td>${tx.id}</td><td>${tx.date.split('T')[0]}</td><td>${tx.narration}</td><td>${entriesHtml}</td><td>${tx.totalCR.toFixed(2)}</td><td>${tx.totalDR.toFixed(2)}</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -345,12 +345,23 @@ function renderTrialBalance(){
         tbody.appendChild(tr);
     });
 }
-document.getElementById('exportTrialPDF').addEventListener('click', ()=>{
-    const doc = new jsPDF(); doc.text('Trial Balance',105,10,null,null,'center');
-    const body = Array.from(document.querySelectorAll('#trialBalanceTable tbody tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
-    doc.autoTable({ head:[['Account','DR','CR','Closing']], body, startY:20, theme:'grid' });
-    doc.save('TrialBalance.pdf');
-});
+
+// ---------------- Profit & Loss ----------------
+function renderPL(){
+    const tbody = document.getElementById('profitLossTable').querySelector('tbody'); tbody.innerHTML='';
+    accounts.filter(a=>['Income','Expense'].includes(a.type)).forEach(acc=>{
+        let DR=0, CR=0;
+        transactions.forEach(tx=>{
+            tx.entries.forEach(e=>{
+                if(e.accountId===acc.id){ if(e.type==='DR') DR+=e.amount; else CR+=e.amount; }
+            });
+        });
+        const net = acc.type==='Income'?CR-DR:DR-CR;
+        const tr = document.createElement('tr');
+        tr.innerHTML=`<td>${acc.name}</td><td>${DR.toFixed(2)}</td><td>${CR.toFixed(2)}</td><td>${net.toFixed(2)}</td>`;
+        tbody.appendChild(tr);
+    });
+}
 
 // ---------------- Reports ----------------
 document.getElementById('generateReportBtn').addEventListener('click', ()=>{
@@ -371,79 +382,32 @@ document.getElementById('generateReportBtn').addEventListener('click', ()=>{
         tbody.appendChild(tr);
     });
 });
-document.getElementById('exportReportPDF').addEventListener('click', ()=>{
-    const table = document.getElementById('reportPreview');
-    const doc = new jsPDF(); doc.text('Transactions Report',105,10,null,null,'center');
-    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
-    doc.autoTable({ head:[['Voucher','Date','Narration','Entries']], body, startY:20, theme:'grid' });
-    doc.save('TransactionsReport.pdf');
-});
 
-// ---------------- Profit & Loss ----------------
-function renderPL(){
-    const tbody = document.getElementById('profitLossTable').querySelector('tbody'); tbody.innerHTML='';
-    accounts.filter(a=>['Income','Expense'].includes(a.type)).forEach(acc=>{
-        let DR=0, CR=0;
-        transactions.forEach(tx=>{
-            tx.entries.forEach(e=>{
-                if(e.accountId===acc.id){ if(e.type==='DR') DR+=e.amount; else CR+=e.amount; }
-            });
-        });
-        const net = acc.type==='Income'?CR-DR:DR-CR;
-        const tr = document.createElement('tr');
-        tr.innerHTML=`<td>${acc.name}</td><td>${DR.toFixed(2)}</td><td>${CR.toFixed(2)}</td><td>${net.toFixed(2)}</td>`;
-        tbody.appendChild(tr);
-    });
+// ---------------- PDF Exports ----------------
+async function exportPDF(tableId, title, head){
+    const { jsPDF } = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+    const autoTable = (await import('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.es.min.js')).default;
+
+    const doc = new jsPDF();
+    doc.text(title, 105, 10, { align: 'center' });
+
+    const body = Array.from(document.querySelectorAll(`#${tableId} tbody tr`))
+        .map(tr => Array.from(tr.children).map(td => td.textContent));
+
+    autoTable(doc, { head:[head], body, startY:20, theme:'grid' });
+    doc.save(title.replace(/\s+/g,'')+'.pdf');
 }
-document.getElementById('exportPLPDF').addEventListener('click', ()=>{
-    const table = document.getElementById('profitLossTable');
-    const doc = new jsPDF(); doc.text('Profit & Loss',105,10,null,null,'center');
-    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
-    doc.autoTable({ head:[['Account','DR','CR','Net']], body, startY:20, theme:'grid' });
-    doc.save('ProfitLoss.pdf');
-});
-import jsPDF from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
-import autoTable from 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.28/dist/jspdf.plugin.autotable.es.min.js';
-// Trial Balance PDF
-document.getElementById('exportTrialPDF').addEventListener('click', ()=>{
-    const doc = new jsPDF();
-    doc.text('Trial Balance', 105, 10, { align: 'center' });
 
-    const body = Array.from(document.querySelectorAll('#trialBalanceTable tbody tr'))
-        .map(tr => Array.from(tr.children).map(td => td.textContent));
+document.getElementById('exportTrialPDF').addEventListener('click', ()=> exportPDF('trialBalanceTable','Trial Balance',['Account','DR','CR','Closing']));
+document.getElementById('exportReportPDF').addEventListener('click', ()=> exportPDF('reportPreview','Transactions Report',['Voucher','Date','Narration','Entries']));
+document.getElementById('exportPLPDF').addEventListener('click', ()=> exportPDF('profitLossTable','Profit & Loss',['Account','DR','CR','Net']));
 
-    autoTable(doc, { head:[['Account','DR','CR','Closing']], body, startY: 20, theme:'grid' });
-    doc.save('TrialBalance.pdf');
-});
-
-// Transactions Report PDF
-document.getElementById('exportReportPDF').addEventListener('click', ()=>{
-    const doc = new jsPDF();
-    doc.text('Transactions Report', 105, 10, { align: 'center' });
-
-    const body = Array.from(document.querySelectorAll('#reportPreview tbody tr'))
-        .map(tr => Array.from(tr.children).map(td => td.textContent));
-
-    autoTable(doc, { head:[['Voucher','Date','Narration','Entries']], body, startY: 20, theme:'grid' });
-    doc.save('TransactionsReport.pdf');
-});
-
-// Profit & Loss PDF
-document.getElementById('exportPLPDF').addEventListener('click', ()=>{
-    const doc = new jsPDF();
-    doc.text('Profit & Loss', 105, 10, { align: 'center' });
-
-    const body = Array.from(document.querySelectorAll('#profitLossTable tbody tr'))
-        .map(tr => Array.from(tr.children).map(td => td.textContent));
-
-    autoTable(doc, { head:[['Account','DR','CR','Net']], body, startY: 20, theme:'grid' });
-    doc.save('ProfitLoss.pdf');
-});
-
-// Real-time render triggers
+// ---------------- Real-time render triggers ----------------
 setInterval(()=>{ renderTrialBalance(); renderPL(); },1000);
 
 </script>
+
 </body>
 </html>
+
 
