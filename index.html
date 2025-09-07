@@ -5,25 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Personal Ledger System</title>
 <link rel="stylesheet" href="style.css">
-  <!-- Supabase JS library -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.32.0/dist/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.32.0/dist/supabase.min.js"></script>
-<script src="script.js"></script>
-
-
 </head>
 <body>
 
 <div class="container">
   <h1>Personal Ledger System</h1>
   
+  <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" data-tab="accounts">Accounts</div>
     <div class="tab" data-tab="transactions">Transactions</div>
     <div class="tab" data-tab="reports">Reports</div>
   </div>
 
-  <!-- Accounts Tab -->
+  <!-- Accounts -->
   <div class="tab-content active" id="accounts">
     <h2>Manage Accounts</h2>
     <form id="account-form">
@@ -43,7 +38,7 @@
         <tr>
           <th>Account Name</th>
           <th>Type</th>
-          <th>Amount</th>
+          <th>Balance</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -51,7 +46,7 @@
     </table>
   </div>
 
-  <!-- Transactions Tab -->
+  <!-- Transactions -->
   <div class="tab-content" id="transactions">
     <h2>Record Transaction</h2>
     <form id="transaction-form">
@@ -79,17 +74,16 @@
     </table>
   </div>
 
-  <!-- Reports Tab -->
+  <!-- Reports -->
   <div class="tab-content" id="reports">
-    <h2>Reports</h2>
-    <p>Reports placeholder: merged total balance, trial balance, balance sheet, individual account reports.</p>
-    <button id="generate-report">Generate Reports</button>
-<button id="export-csv-btn">Backup Ledger to CSV</button>
-  
+    <h2>Reports & Backup</h2>
+    <button id="export-csv-btn">Backup Ledger to CSV</button>
+    <p>Reports will include merged balances, trial balance, individual account reports.</p>
   </div>
-  
 </div>
 
+<!-- Supabase JS (must come before script.js) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.32.0/dist/supabase.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
