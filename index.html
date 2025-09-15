@@ -44,9 +44,20 @@
   .report-meta{font-size:14px;margin-bottom:8px}
   .report-summary{margin-top:12px;font-weight:600}
   .hr-line{border-top:1px solid #ddd;margin:8px 0}
+
+  /* transaction list & suggestions */
+  #transaction-list { max-height: 380px; overflow:auto; border:1px solid #eee; border-radius:8px; padding:6px; background: #fff; }
+  .tx-row { padding:8px; border-bottom:1px solid #f4f4f4; cursor:pointer; }
+  .tx-row:hover { background:#fafafa; }
+  .tx-active { background: #fff7d6; }
+  mark { background: #ffe58a; padding:0 2px; border-radius:2px; }
+  .suggestions { position: absolute; background:white; border:1px solid #ddd; z-index:50; max-height:160px; overflow:auto; width:100%; border-radius:6px; box-shadow:0 6px 14px rgba(0,0,0,0.06); }
+  .suggestion-item{ padding:8px; cursor:pointer }
+  .suggestion-item:hover{ background:#f6f6f6 }
+  .relative{ position:relative }
 </style>
 
-<!-- Supabase UMD build (works with GitHub Pages / non-module scripts) -->
+<!-- Supabase UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.1/dist/umd/supabase.js"></script>
 
 </head>
@@ -157,6 +168,71 @@
         </div>
       </div>
 
+      <!-- Search + Filters -->
+      <div class="card" style="padding:12px; display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <input id="transaction-search" placeholder="Search transactions..." />
+        </div>
+        <div style="width:220px">
+          <select id="transaction-search-filter">
+            <option value="all">All</option>
+            <option value="date">Date</option>
+            <option value="voucher">Voucher</option>
+            <option value="description">Description</option>
+            <option value="account">Account</option>
+            <option value="amount">Amount</option>
+          </select>
+        </div>
+        <div style="width:160px;display:flex;gap:6px">
+          <button class="btn small" id="toggle-advanced">Advanced</button>
+          <button class="btn small secondary" id="clear-filters-btn">Clear</button>
+        </div>
+      </div>
+
+      <!-- Advanced Filters (collapsible) -->
+      <div id="advancedFiltersPanel" class="card" style="display:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px" class="relative">
+            <label>From</label>
+            <input id="filter-date-from" placeholder="YYYY-MM-DD" />
+            <div id="suggest-date-from" class="suggestions" style="display:none"></div>
+          </div>
+          <div style="flex:1;min-width:180px" class="relative">
+            <label>To</label>
+            <input id="filter-date-to" placeholder="YYYY-MM-DD" />
+            <div id="suggest-date-to" class="suggestions" style="display:none"></div>
+          </div>
+          <div style="flex:1;min-width:150px" class="relative">
+            <label>Min Amount</label>
+            <input id="filter-amount-min" placeholder="e.g. 1000" />
+            <div id="suggest-amount-min" class="suggestions" style="display:none"></div>
+          </div>
+          <div style="flex:1;min-width:150px" class="relative">
+            <label>Max Amount</label>
+            <input id="filter-amount-max" placeholder="e.g. 5000" />
+            <div id="suggest-amount-max" class="suggestions" style="display:none"></div>
+          </div>
+
+          <div style="flex:1 1 320px;min-width:240px" class="relative">
+            <label>Account</label>
+            <input id="filter-account" placeholder="Type account name..." />
+            <div id="suggest-account" class="suggestions" style="display:none"></div>
+          </div>
+
+          <div style="flex:1 1 320px;min-width:240px" class="relative">
+            <label>Description</label>
+            <input id="filter-description" placeholder="Type description..." />
+            <div id="suggest-description" class="suggestions" style="display:none"></div>
+          </div>
+
+          <div style="flex:1 1 200px;min-width:140px" class="relative">
+            <label>Voucher</label>
+            <input id="filter-voucher" placeholder="Voucher no..." />
+            <div id="suggest-voucher" class="suggestions" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- View mode -->
       <div id="txViewArea" class="card" style="padding:12px">
         <div id="txViewContent" class="muted">No transactions yet. Click 'New Entry' to create.</div>
@@ -225,511 +301,7 @@
   <input type="file" id="importFile" accept="application/json" style="display:none" />
 </div>
 
-<script>
-/* ---------- Supabase setup ---------- */
-/* Replace with your values (anon public key). Do NOT use service role key in the browser. */
-const SUPABASE_URL = "https://jdcmdcczdafledslofjr.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkY21kY2N6ZGFmbGVkc2xvZmpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NjYyNjYsImV4cCI6MjA3MzQ0MjI2Nn0.35Wmrq5mlmoZWYhnoFH94vC3kfpDUUeSgPUDvCJ2A-o";
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-/* ---------- App state ---------- */
-const STORAGE_KEY = 'personal_ledger_complete_v1';
-let state = {
-  accounts: [],
-  transactions: [],
-  meta: { nextAccountSerial: 1, nextVoucherNo: 1, lastPostedSnapshot: null },
-  currentTxIndex: null,
-  formMode: false,
-  _formTx: null
-};
-
-/* ---------- helpers ---------- */
-function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
-function parseAmountInput(s){
-  if(s===undefined||s===null) return 0;
-  const t = String(s).replace(/,/g,'').trim();
-  if(t==='') return 0;
-  const n = Number(t);
-  return isNaN(n)?0:n;
-}
-function money(x){
-  const n = Number(x)||0;
-  return n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-function plainMoney(x){ return (Number(x)||0).toFixed(2); }
-function escapeHtml(s){ if(s===undefined||s===null) return ''; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function findAccount(id){ return state.accounts.find(a=>a.id===id) || null; }
-
-/* ---------- persistence: Supabase ---------- */
-async function loadState(){
-  try{
-    const resp = await supabaseClient
-      .from('ledger')
-      .select('*')
-      .eq('id','main')
-      .single();
-
-    // resp: { data, error }
-    if(resp.error && resp.error.code && resp.error.code !== 'PGRST116'){
-      // Throw unexpected errors
-      throw resp.error;
-    }
-    const data = resp.data;
-    if(data){
-      state.accounts = data.accounts || [];
-      state.transactions = data.transactions || [];
-      state.meta = data.meta || state.meta;
-    }
-    recomputeClosingBalances();
-  } catch(e){
-    console.error('Error loading from Supabase:', e && e.message ? e.message : e);
-  }
-}
-
-async function saveState(){
-  try{
-    const resp = await supabaseClient.from('ledger').upsert({
-      id: 'main',
-      accounts: state.accounts,
-      transactions: state.transactions,
-      meta: state.meta
-    });
-    if(resp.error) throw resp.error;
-  } catch(e){
-    console.error('Error saving to Supabase:', e && e.message ? e.message : e);
-  }
-}
-
-async function clearAllData(){
-  if(!confirm('Clear ALL data? This will remove accounts and transactions from Supabase. Continue?')) return;
-  try{
-    // delete remote row
-    const del = await supabaseClient.from('ledger').delete().eq('id','main');
-    if(del.error) console.warn('Delete returned error (may be fine if row absent):', del.error);
-    // reset local state
-    state = { accounts: [], transactions: [], meta: { nextAccountSerial:1, nextVoucherNo:1, lastPostedSnapshot:null }, currentTxIndex:null, formMode:false, _formTx:null };
-    // upsert an empty row so future loads won't error (optional)
-    await saveState();
-    recomputeClosingBalances();
-    renderAccounts();
-    initialTransactionsView();
-    renderDashboard();
-    alert('All data cleared.');
-  } catch(e){
-    console.error('Error clearing data from Supabase:', e && e.message ? e.message : e);
-    alert('Failed to clear data. See console for details.');
-  }
-}
-
-/* ---------- previous totals before last posted helper ---------- */
-function recomputeClosingBalances(){
-  state.accounts.forEach(a => a.closing = Number(a.openingBalance || 0));
-  const posted = state.transactions.filter(t=>t.posted).slice().sort((a,b)=>{
-    const da=new Date(a.date).getTime(), db=new Date(b.date).getTime();
-    if(da!==db) return da-db; return (a.voucherNo||0)-(b.voucherNo||0);
-  });
-  posted.forEach(t=>{
-    t.lines.forEach(l=>{
-      const acc = findAccount(l.accountId);
-      if(!acc) return;
-      acc.closing = Number(acc.closing) + Number(l.dr || 0) - Number(l.cr || 0);
-    });
-  });
-}
-
-function computePreviousTotalsBeforeLastPosted(){
-  const posted = state.transactions.filter(t=>t.posted).slice().sort((a,b)=>{
-    const da=new Date(a.date).getTime(), db=new Date(b.date).getTime();
-    if(da!==db) return da-db; return (a.voucherNo||0)-(b.voucherNo||0);
-  });
-  if(posted.length===0){
-    const bank = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('bank')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    const cash = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('cash')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    return { bank, cash };
-  }
-  const last = posted[posted.length-1];
-  last.posted = false; recomputeClosingBalances();
-  const bankBefore = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('bank')).reduce((s,a)=> s + Number(a.closing||0), 0);
-  const cashBefore = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('cash')).reduce((s,a)=> s + Number(a.closing||0), 0);
-  last.posted = true; recomputeClosingBalances();
-  return { bank: bankBefore, cash: cashBefore };
-}
-
-/* ---------- UI wiring ---------- */
-document.addEventListener('DOMContentLoaded', async ()=>{
-  await loadState();
-  wireTabs();
-  prepareUI();
-  switchTo('dashboard');
-  renderAccounts();
-  initialTransactionsView();
-  renderDashboard();
-});
-
-/* tabs */
-function wireTabs(){
-  document.querySelectorAll('.tab').forEach(btn=> btn.addEventListener('click', ()=> switchTo(btn.dataset.tab)));
-}
-function switchTo(view){
-  document.querySelectorAll('[id$="View"]').forEach(el=> el.style.display='none');
-  const el = document.getElementById(view+'View');
-  if(el) el.style.display = 'block';
-  document.querySelectorAll('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab === view));
-  if(view==='dashboard') renderDashboard();
-  if(view==='accounts') renderAccounts();
-  if(view==='transactions') initialTransactionsView();
-  if(view==='reports') prepareReportUI();
-}
-
-/* Prepare UI event handlers */
-function prepareUI(){
-  // accounts
-  document.getElementById('saveAccount').addEventListener('click', async ()=> {
-    const name = document.getElementById('accName').value.trim();
-    const type = document.getElementById('accType').value.trim();
-    const narr = document.getElementById('accNarr').value.trim();
-    const opening = parseAmountInput(document.getElementById('accOpening').value);
-    if(!name) return alert('Account name required');
-    const acc = { id: uid('acc'), serial: state.meta.nextAccountSerial++, name, type, narration: narr, openingBalance: opening, closing: opening };
-    state.accounts.push(acc);
-    await saveState(); recomputeClosingBalances(); renderAccounts(); renderDashboard();
-    resetAccountForm(); alert('Account created.');
-  });
-  document.getElementById('resetAccount').addEventListener('click', resetAccountForm);
-
-  // clear/export/import
-  document.getElementById('clearAll').addEventListener('click', ()=> clearAllData());
-  document.getElementById('exportData').addEventListener('click', ()=> {
-    const data = JSON.stringify({ accounts: state.accounts, transactions: state.transactions, meta: state.meta }, null, 2);
-    const blob = new Blob([data], {type:'application/json'}); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'ledger_export.json'; a.click(); URL.revokeObjectURL(url);
-  });
-  document.getElementById('importDataBtn').addEventListener('click', ()=> document.getElementById('importFile').click());
-  document.getElementById('importFile').addEventListener('change', (ev)=> {
-    const f = ev.target.files[0]; if(!f) return;
-    const reader = new FileReader(); reader.onload = async e => {
-      try {
-        const parsed = JSON.parse(e.target.result);
-        if(!confirm('Replace Supabase data with imported data?')) return;
-        state.accounts = parsed.accounts || []; state.transactions = parsed.transactions || []; state.meta = parsed.meta || state.meta;
-        await saveState(); recomputeClosingBalances(); renderAccounts(); initialTransactionsView(); renderDashboard(); alert('Import complete.');
-      } catch(err){ alert('Import failed: ' + err.message); }
-    };
-    reader.readAsText(f);
-  });
-
-  // transactions controls
-  document.getElementById('btnNewEntry').addEventListener('click', ()=> startNewEntry());
-  document.getElementById('btnEdit').addEventListener('click', ()=> startEditCurrent());
-  document.getElementById('btnDelete').addEventListener('click', ()=> deleteCurrentTransaction());
-  document.getElementById('addLine').addEventListener('click', ()=> addLine());
-  document.getElementById('removeLine').addEventListener('click', ()=> removeLastLine());
-  document.getElementById('btnCancel').addEventListener('click', ()=> cancelForm());
-  document.getElementById('btnPost').addEventListener('click', ()=> finishAndPost());
-
-  // navs
-  document.getElementById('firstTx').addEventListener('click', ()=> goToTx(0));
-  document.getElementById('lastTx').addEventListener('click', ()=> goToTx(state.transactions.length-1));
-  document.getElementById('prevTx').addEventListener('click', ()=> navigateTx(-1));
-  document.getElementById('nextTx').addEventListener('click', ()=> navigateTx(1));
-
-  // reports
-  document.getElementById('runReport').addEventListener('click', ()=> runReport());
-  document.getElementById('refreshReport').addEventListener('click', ()=> prepareReportUI());
-}
-
-/* Accounts */
-function resetAccountForm(){ document.getElementById('accName').value=''; document.getElementById('accType').value=''; document.getElementById('accNarr').value=''; document.getElementById('accOpening').value='0'; }
-
-function renderAccounts(){
-  recomputeClosingBalances();
-  const tbody = document.querySelector('#accountsTable tbody'); tbody.innerHTML = '';
-  state.accounts.sort((a,b)=> a.serial - b.serial).forEach(a=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${a.serial}</td><td>${escapeHtml(a.name)}</td><td>${escapeHtml(a.type||'')}</td><td class="right">${money(a.openingBalance)}</td><td class="right">${money(a.closing||0)}</td>
-      <td><button class="btn small" data-id="${a.id}" onclick="startEditAccount(event)">Edit</button>
-      <button class="btn small" style="margin-left:6px" data-id="${a.id}" onclick="removeAccount(event)">Remove</button></td>`;
-    tbody.appendChild(tr);
-  });
-
-  const sel = document.getElementById('reportAccount'); sel.innerHTML = '<option value="">-- All accounts --</option>';
-  state.accounts.forEach(a => { const opt = document.createElement('option'); opt.value = a.id; opt.text = `${a.name} (S:${a.serial})`; sel.appendChild(opt); });
-}
-
-function removeAccount(ev){
-  const id = ev.currentTarget.dataset.id;
-  const used = state.transactions.some(tx => tx.lines.some(l => l.accountId === id));
-  if(used) return alert('Cannot remove account: it is used in transactions.');
-  if(!confirm('Delete account? This cannot be undone.')) return;
-  const idx = state.accounts.findIndex(a => a.id === id); if(idx !== -1) state.accounts.splice(idx,1);
-  saveState(); recomputeClosingBalances(); renderAccounts(); renderDashboard(); alert('Account removed.');
-}
-
-function startEditAccount(ev){
-  const id = ev.currentTarget.dataset.id; const acc = findAccount(id); if(!acc) return alert('Account not found');
-  document.getElementById('accName').value = acc.name; document.getElementById('accType').value = acc.type; document.getElementById('accNarr').value = acc.narration; document.getElementById('accOpening').value = acc.openingBalance;
-  const saveBtn = document.getElementById('saveAccount'); const old = saveBtn.onclick;
-  saveBtn.onclick = function(){ const name = document.getElementById('accName').value.trim(); if(!name) return alert('Account name required'); acc.name = name; acc.type = document.getElementById('accType').value.trim(); acc.narration = document.getElementById('accNarr').value.trim(); acc.openingBalance = parseAmountInput(document.getElementById('accOpening').value)||0; saveState(); recomputeClosingBalances(); renderAccounts(); renderDashboard(); resetAccountForm(); saveBtn.onclick = old; alert('Account updated.'); };
-}
-
-/* Transactions view & form logic */
-function initialTransactionsView(){
-  recomputeClosingBalances();
-  if(state.transactions.length) state.currentTxIndex = state.transactions.length - 1; else state.currentTxIndex = null;
-  state.formMode = false; state._formTx = null;
-  renderTxView();
-}
-
-function renderTxView(){
-  document.getElementById('txFormArea').style.display = 'none';
-  document.getElementById('txViewArea').style.display = 'block';
-  document.getElementById('btnNewEntry').disabled = false;
-  document.getElementById('btnEdit').disabled = (state.currentTxIndex === null);
-  document.getElementById('btnDelete').disabled = (state.currentTxIndex === null);
-  const view = document.getElementById('txViewContent');
-  if(state.currentTxIndex === null || !state.transactions[state.currentTxIndex]){
-    document.getElementById('voucherNo').value = ''; document.getElementById('voucherDate').value = (new Date()).toISOString().slice(0,10);
-    view.innerHTML = 'No transactions yet. Click New Entry to create.';
-    return;
-  }
-  const tx = state.transactions[state.currentTxIndex];
-  document.getElementById('voucherNo').value = tx.voucherNo; document.getElementById('voucherDate').value = tx.date;
-  let html = `<div style="font-weight:600">Voucher ${tx.voucherNo} — Date: ${tx.date}${tx.posted? ' (Posted)' : ' (Draft)'}</div>`;
-  html += `<div style="margin-top:8px;margin-bottom:8px">${escapeHtml(tx.narration||'')}</div>`;
-  html += `<table><thead><tr><th>#</th><th>Account</th><th>Narration</th><th class="right">DR</th><th class="right">CR</th></tr></thead><tbody>`;
-  tx.lines.forEach((l,i)=>{
-    const acc = findAccount(l.accountId);
-    html += `<tr><td>${i+1}</td><td>${escapeHtml(acc?acc.name:'(deleted)')}</td><td>${escapeHtml(l.narration||'')}</td><td class="right">${plainMoney(l.dr)}</td><td class="right">${plainMoney(l.cr)}</td></tr>`;
-  });
-  const drTotal = tx.lines.reduce((s,l)=> s + Number(l.dr||0),0); const crTotal = tx.lines.reduce((s,l)=> s + Number(l.cr||0),0);
-  html += `</tbody><tfoot><tr><td colspan="3" class="right"><b>Totals</b></td><td class="right">${plainMoney(drTotal)}</td><td class="right">${plainMoney(crTotal)}</td></tr></tfoot></table>`;
-  view.innerHTML = html;
-}
-
-/* Start new entry */
-function startNewEntry(){
-  if(state.accounts.length === 0) return alert('Create at least one account first.');
-  state.formMode = true;
-  state._formTx = { id: uid('tx'), voucherNo: state.meta.nextVoucherNo, date: (new Date()).toISOString().slice(0,10), narration: '', lines: [{id: uid('line'), accountId: state.accounts[0].id, narration:'', dr:0, cr:0}], posted:false };
-  document.getElementById('voucherNo').value = state._formTx.voucherNo; document.getElementById('voucherDate').value = state._formTx.date;
-  showFormArea();
-}
-
-/* Edit current transaction */
-function startEditCurrent(){
-  if(state.currentTxIndex === null || !state.transactions[state.currentTxIndex]) return alert('No transaction selected to edit.');
-  state.formMode = true; state._formTx = JSON.parse(JSON.stringify(state.transactions[state.currentTxIndex]));
-  document.getElementById('voucherNo').value = state._formTx.voucherNo; document.getElementById('voucherDate').value = state._formTx.date;
-  showFormArea();
-}
-
-/* Show form area */
-function showFormArea(){
-  document.getElementById('txViewArea').style.display = 'none'; document.getElementById('txFormArea').style.display = 'block';
-  populateTxLines(); document.getElementById('btnNewEntry').disabled = true; document.getElementById('btnEdit').disabled = true; document.getElementById('btnDelete').disabled = true;
-}
-
-/* Cancel form */
-function cancelForm(){
-  if(!confirm('Cancel entry/edit? Unsaved changes will be lost.')) return;
-  state.formMode = false; state._formTx = null; renderTxView();
-}
-
-/* Populate lines UI */
-function populateTxLines(){
-  const wrapper = document.getElementById('txLines'); wrapper.innerHTML = '';
-  if(!state._formTx) return;
-  state._formTx.lines.forEach((line, idx) => {
-    const row = document.createElement('div'); row.className='rows'; row.style.marginTop='8px'; row.dataset.lineId = line.id;
-    row.innerHTML = `
-      <div class="indexCol">${idx+1}.</div>
-      <div class="accountSelect"><select data-field="accountId" data-line="${line.id}"></select></div>
-      <div style="flex:1"><input data-field="narration" data-line="${line.id}" placeholder="Line narration" value="${escapeHtml(line.narration||'')}" /></div>
-      <div class="amount"><input class="amount-input" data-field="dr" data-line="${line.id}" type="text" placeholder="DR" value="${line.dr?plainMoney(line.dr):''}" /></div>
-      <div class="amount"><input class="amount-input" data-field="cr" data-line="${line.id}" type="text" placeholder="CR" value="${line.cr?plainMoney(line.cr):''}" /></div>
-      <div style="width:80px;flex:0 0 80px"><button class="btn small" data-action="del" data-line="${line.id}">Remove</button></div>
-    `;
-    wrapper.appendChild(row);
-    // fill select
-    const sel = row.querySelector('select[data-field="accountId"]'); sel.innerHTML = '<option value="">-- select account --</option>';
-    state.accounts.forEach(a => { const opt = document.createElement('option'); opt.value = a.id; opt.text = `${a.name} (S:${a.serial})`; if(a.id === line.accountId) opt.selected = true; sel.appendChild(opt); });
-    // bind events
-    row.querySelectorAll('input, select, button').forEach(el => {
-      el.addEventListener('input', onLineChange);
-      el.addEventListener('change', onLineChange);
-      el.addEventListener('click', (e)=> { if(e.target.dataset.action === 'del'){ removeLineById(e.target.dataset.line); } });
-    });
-  });
-  updateTotals();
-}
-
-/* Handlers for line changes - enforce one side empty + free input */
-function onLineChange(e){
-  const el = e.target; const field = el.dataset.field; const lid = el.dataset.line;
-  if(!field || !lid || !state._formTx) return;
-  const l = state._formTx.lines.find(x=>x.id===lid); if(!l) return;
-  if(field === 'accountId'){ l.accountId = el.value; }
-  else if(field === 'narration'){ l.narration = el.value; }
-  else if(field === 'dr'){
-    l.dr = parseAmountInput(el.value);
-    if(l.dr > 0) l.cr = 0;
-    const crInput = document.querySelector(`input[data-field="cr"][data-line="${lid}"]`);
-    if(crInput) crInput.value = '';
-    updateTotals();
-  }
-  else if(field === 'cr'){
-    l.cr = parseAmountInput(el.value);
-    if(l.cr > 0) l.dr = 0;
-    const drInput = document.querySelector(`input[data-field="dr"][data-line="${lid}"]`);
-    if(drInput) drInput.value = '';
-    updateTotals();
-  }
-}
-
-/* Add / remove lines */
-function addLine(){ if(!state._formTx) return; state._formTx.lines.push({ id: uid('line'), accountId: state.accounts[0]?.id || '', narration:'', dr:0, cr:0 }); populateTxLines(); }
-function removeLastLine(){ if(!state._formTx) return; if(state._formTx.lines.length <= 1) return alert('At least one line required'); state._formTx.lines.pop(); populateTxLines(); }
-function removeLineById(lid){ if(!state._formTx) return; const idx = state._formTx.lines.findIndex(x=>x.id===lid); if(idx===-1) return; if(state._formTx.lines.length <= 1) return alert('At least one line required'); state._formTx.lines.splice(idx,1); populateTxLines(); }
-
-/* Totals */
-function updateTotals(){ if(!state._formTx) return; const crTotal = state._formTx.lines.reduce((s,l)=> s + Number(l.cr||0), 0); const drTotal = state._formTx.lines.reduce((s,l)=> s + Number(l.dr||0), 0); document.getElementById('crTotal').textContent = money(crTotal); document.getElementById('drTotal').textContent = money(drTotal); }
-
-/* Finish & Post */
-async function finishAndPost(){
-  if(!state._formTx) return alert('No entry to post.');
-  state._formTx.date = document.getElementById('voucherDate').value || state._formTx.date;
-  const validLines = state._formTx.lines.map(l=> ({ id: l.id, accountId: l.accountId, narration: l.narration || '', dr: Number(l.dr||0), cr: Number(l.cr||0) }))
-    .filter(l => ( ((l.dr>0 && l.cr===0) || (l.cr>0 && l.dr===0)) && l.accountId ));
-  if(validLines.length < 2) return alert('At least two valid lines are required.');
-  const drTotal = validLines.reduce((s,l)=> s + Number(l.dr||0), 0);
-  const crTotal = validLines.reduce((s,l)=> s + Number(l.cr||0), 0);
-  if(Math.abs(drTotal - crTotal) > 0.0001) return alert('Debit and Credit totals must match before posting.');
-
-  const txObj = { id: state._formTx.id || uid('tx'), voucherNo: state._formTx.voucherNo || state.meta.nextVoucherNo, date: state._formTx.date, narration: state._formTx.narration || '', lines: validLines, posted: true, timestamp: Date.now() };
-
-  if(state.currentTxIndex !== null && state.transactions[state.currentTxIndex] && state.transactions[state.currentTxIndex].id === txObj.id){
-    state.transactions[state.currentTxIndex] = txObj;
-  } else {
-    state.transactions.push(txObj); state.currentTxIndex = state.transactions.length - 1;
-  }
-  state.meta.nextVoucherNo = Math.max(state.meta.nextVoucherNo, Number(txObj.voucherNo) + 1);
-
-  // snapshot prev totals before posting
-  const idx = state.transactions.findIndex(t=>t.id === txObj.id);
-  let prevSnap = null;
-  if(idx !== -1){
-    state.transactions[idx].posted = false; recomputeClosingBalances();
-    const bankBefore = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('bank')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    const cashBefore = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('cash')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    prevSnap = { timestamp: Date.now(), bank: bankBefore, cash: cashBefore };
-    state.transactions[idx].posted = true;
-  } else {
-    const bank = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('bank')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    const cash = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('cash')).reduce((s,a)=> s + Number(a.closing||0), 0);
-    prevSnap = { timestamp: Date.now(), bank, cash };
-  }
-  state.meta.lastPostedSnapshot = prevSnap;
-
-  recomputeClosingBalances(); await saveState();
-  state.formMode = false; state._formTx = null;
-  renderDashboard(); renderAccounts(); renderTxView();
-  alert('Transaction posted successfully.');
-}
-
-/* Delete transaction */
-async function deleteCurrentTransaction(){
-  if(state.currentTxIndex === null || !state.transactions[state.currentTxIndex]) return alert('No transaction selected.');
-  const tx = state.transactions[state.currentTxIndex];
-  if(!confirm(`Delete transaction voucher ${tx.voucherNo}? This cannot be undone.`)) return;
-  state.transactions.splice(state.currentTxIndex,1);
-  if(state.transactions.length === 0) state.currentTxIndex = null; else state.currentTxIndex = Math.max(0, state.currentTxIndex - 1);
-  await saveState(); recomputeClosingBalances(); renderAccounts(); renderDashboard(); renderTxView();
-  alert('Transaction deleted.');
-}
-
-/* Navigation */
-function navigateTx(dir){ if(state.transactions.length === 0) return; if(state.currentTxIndex === null) state.currentTxIndex = 0; state.currentTxIndex = Math.max(0, Math.min(state.transactions.length-1, state.currentTxIndex + dir)); state._formTx = null; state.formMode = false; renderTxView(); }
-function goToTx(idx){ if(state.transactions.length === 0) return; state.currentTxIndex = Math.max(0, Math.min(state.transactions.length-1, idx)); state._formTx = null; state.formMode = false; renderTxView(); }
-
-/* Reports */
-function prepareReportUI(){
-  const now = new Date(); const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  document.getElementById('reportFrom').value = first.toISOString().slice(0,10);
-  document.getElementById('reportTo').value = now.toISOString().slice(0,10);
-  renderAccounts(); document.getElementById('reportResult').style.display = 'none';
-}
-function runReport(){
-  const accId = document.getElementById('reportAccount').value;
-  const from = document.getElementById('reportFrom').value;
-  const to = document.getElementById('reportTo').value;
-  const posted = state.transactions.filter(t=>t.posted).slice().sort((a,b)=>{
-    const da=new Date(a.date).getTime(), db=new Date(b.date).getTime();
-    if(da!==db) return da-db; return (a.voucherNo||0)-(b.voucherNo||0);
-  });
-
-  let openingBalance = 0;
-  if(accId){
-    const acc = findAccount(accId);
-    openingBalance = Number(acc?.openingBalance || 0);
-    posted.forEach(t => { if(from && new Date(t.date) >= new Date(from)) return; t.lines.forEach(l=>{ if(l.accountId === accId) openingBalance += Number(l.dr||0) - Number(l.cr||0); }); });
-  }
-
-  const rows = [];
-  posted.forEach(t => {
-    if(from && new Date(t.date) < new Date(from)) return;
-    if(to && new Date(t.date) > new Date(to)) return;
-    t.lines.forEach(l => { if(accId && l.accountId !== accId) return; rows.push({ voucher: t.voucherNo, date: t.date, narration: l.narration || '', dr: Number(l.dr||0), cr: Number(l.cr||0), accountId: l.accountId }); });
-  });
-
-  const tableBody = document.querySelector('#reportTable tbody'); tableBody.innerHTML = '';
-  document.getElementById('reportMeta').textContent = `Account: ${accId ? (findAccount(accId)?.name || '—') : 'All accounts'}; Date: ${from||'start'} to ${to||'end'}`;
-  if(accId){
-    document.getElementById('reportOpening').textContent = `Opening Balance: ${money(openingBalance)}`;
-    const trOpen = document.createElement('tr'); trOpen.innerHTML = `<td></td><td></td><td>Opening Balance</td><td class="right"></td><td class="right"></td><td class="right">${money(openingBalance)}</td>`; tableBody.appendChild(trOpen);
-  } else {
-    document.getElementById('reportOpening').textContent = '';
-  }
-
-  let running = openingBalance, drTot = 0, crTot = 0;
-  rows.forEach(r => {
-    const tr = document.createElement('tr');
-    if(accId){
-      running = running + r.dr - r.cr; drTot += r.dr; crTot += r.cr;
-      tr.innerHTML = `<td>${r.voucher}</td><td>${r.date}</td><td>${escapeHtml(r.narration)}</td><td class="right">${money(r.dr)}</td><td class="right">${money(r.cr)}</td><td class="right">${money(running)}</td>`;
-    } else {
-      drTot += r.dr; crTot += r.cr;
-      tr.innerHTML = `<td>${r.voucher}</td><td>${r.date}</td><td>${escapeHtml(r.narration)}</td><td class="right">${money(r.dr)}</td><td class="right">${money(r.cr)}</td><td class="right">—</td>`;
-    }
-    tableBody.appendChild(tr);
-  });
-
-  document.getElementById('reportDRTotal').textContent = money(drTot);
-  document.getElementById('reportCRTotal').textContent = money(crTot);
-  document.getElementById('reportFinalBal').textContent = accId ? money(running) : '—';
-  document.getElementById('closingBalance').textContent = accId ? money(running) : '—';
-  document.getElementById('carryForward').textContent = accId ? money(running) : '—';
-  document.getElementById('reportResult').style.display = 'block';
-}
-
-/* Dashboard */
-function renderDashboard(){
-  recomputeClosingBalances();
-  const bankTotal = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('bank')).reduce((s,a)=> s + Number(a.closing||0), 0);
-  const cashTotal = state.accounts.filter(a=> (a.type||'').toLowerCase().includes('cash')).reduce((s,a)=> s + Number(a.closing||0), 0);
-  const currentTotal = bankTotal + cashTotal;
-  document.getElementById('bankTotal').textContent = money(bankTotal);
-  document.getElementById('cashTotal').textContent = money(cashTotal);
-  document.getElementById('currentTotal').textContent = money(currentTotal);
-
-  const prev = computePreviousTotalsBeforeLastPosted();
-  document.getElementById('previousTotal').textContent = money(Number(prev.cash||0) + Number(prev.bank||0));
-  document.getElementById('summaryText').textContent = `${state.accounts.length} accounts, ${state.transactions.filter(t=>t.posted).length} transactions posted`;
-}
-
-/* initial render - (handled in DOMContentLoaded) */
-
-// expose state for debugging
-window.state = state;
-</script>
+<!-- Link to app.js -->
+<script type="module" src="app.js"></script>
 </body>
 </html>
