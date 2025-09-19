@@ -1,0 +1,168 @@
+/* style.css — Complete polished styles for Simple Accounting App */
+
+/* ==== Color tokens ==== */
+:root{
+  --bg: #f6f8fb;
+  --card: #ffffff;
+  --muted: #6b7280;
+  --accent: #0ea5a4;
+  --accent-2: #059669;
+  --danger: #ef4444;
+  --text: #0f172a;
+  --glass: rgba(255,255,255,0.65);
+  --shadow: 0 6px 18px rgba(2,6,23,0.06);
+}
+
+/* ==== Base Reset ==== */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit}
+a{color:inherit;text-decoration:none}
+.hidden{display:none}
+
+/* ==== Layout ==== */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:230px;
+  background:#071426;
+  color:#fff;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.brand{font-weight:800;font-size:20px;letter-spacing:0.6px}
+.nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.nav-btn{
+  background:none;
+  border:none;
+  color:inherit;
+  padding:10px 12px;
+  text-align:left;
+  cursor:pointer;
+  border-radius:8px;
+  font-size:15px;
+}
+.nav-btn:hover{background:rgba(255,255,255,0.08)}
+.nav-btn.active{background:linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));font-weight:700}
+.version{margin-top:auto;font-size:12px;color:rgba(255,255,255,0.6)}
+
+.main{
+  flex:1;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  overflow-x:hidden;
+}
+
+/* ==== Topbar ==== */
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.topbar .title{font-weight:700;font-size:18px}
+.actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ==== Buttons ==== */
+.btn{
+  background:var(--accent);
+  color:white;
+  padding:8px 12px;
+  border-radius:8px;
+  border:0;
+  cursor:pointer;
+  transition:background 0.2s;
+}
+.btn:hover{background:var(--accent-2)}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(14,165,164,0.3)}
+.btn.small{padding:6px 8px;font-size:13px}
+.btn.danger{background:var(--danger);color:white}
+.btn.danger:hover{opacity:0.9}
+
+/* ==== Cards & dashboard ==== */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.card{
+  background:var(--card);
+  padding:14px;
+  border-radius:10px;
+  box-shadow:var(--shadow);
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:78px
+}
+.card .label{color:var(--muted);font-size:13px}
+.card .value{font-size:18px;font-weight:700;margin-top:6px}
+
+/* ==== Recent vouchers ==== */
+.recent{margin-top:16px}
+.recent .card{padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+
+/* ==== Panels ==== */
+.panel{display:flex;gap:18px;margin-top:12px;align-items:flex-start}
+.panel-left{flex:2;min-width:0}
+.panel-right{flex:1;min-width:260px}
+
+/* ==== Forms ==== */
+form label{display:flex;flex-direction:column;font-size:13px;color:var(--text);gap:4px;margin-bottom:10px}
+input,select{
+  padding:8px 10px;
+  border:1px solid #d1d5db;
+  border-radius:6px;
+  font-size:14px;
+}
+input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(14,165,164,0.2)}
+.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+/* ==== Tables ==== */
+.table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+.table th,.table td{padding:8px;border-bottom:1px solid #eef2f6;text-align:left}
+.table tbody tr:hover{background:#f8fafc}
+
+/* ==== Voucher UI ==== */
+.voucher-entries{
+  margin-top:8px;
+  border:1px dashed #e6eef6;
+  padding:8px;
+  border-radius:8px;
+  max-height:420px;
+  overflow:auto;
+  background:#f9fafb;
+}
+.voucher-row{
+  display:grid;
+  grid-template-columns:1fr 120px 90px 40px;
+  gap:8px;
+  align-items:center;
+  margin-bottom:6px
+}
+.voucher-actions{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.chip{padding:6px 10px;border-radius:999px;background:#f1f5f9;font-size:13px}
+
+/* ==== Small helpers ==== */
+.small{font-size:13px;color:var(--muted)}
+.link{background:none;border:none;color:var(--accent);cursor:pointer;padding:4px;font-size:13px}
+.link.danger{color:var(--danger)}
+.voucher-nav{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+
+/* ==== Report ==== */
+.filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#reportResult{margin-top:12px;overflow:auto}
+
+/* ==== Footer ==== */
+.footer{margin-top:32px;text-align:center;color:var(--muted);font-size:13px}
+
+/* ==== Responsive ==== */
+@media (max-width:980px){
+  .app{flex-direction:column}
+  .sidebar{
+    width:100%;
+    flex-direction:row;
+    align-items:center;
+    padding:12px;
+    gap:10px;
+    overflow-x:auto
+  }
+  .nav{flex-direction:row;gap:6px;overflow:auto}
+  .panel{flex-direction:column}
+  .cards{grid-template-columns:repeat(2,1fr)}
+  .voucher-row{grid-template-columns:1fr 100px 80px 40px}
+}
