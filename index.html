@@ -1,307 +1,152 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Personal Ledger — Complete</title>
-<style>
-  :root{ --accent:#2b6cb0; --muted:#666; --bg:#f7fafc; --card:#fff; --danger:#e53e3e; --success:#2f855a; }
-  *{box-sizing:border-box}
-  body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:0; background:var(--bg); color:#111;}
-  .app{max-width:1150px;margin:20px auto;padding:18px;}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
-  header h1{margin:0;font-size:20px;}
-  .note{font-size:13px;color:var(--muted)}
-  .tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
-  .tab{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid transparent;cursor:pointer;}
-  .tab.active{background:var(--card);border-color:rgba(0,0,0,0.06);box-shadow:0 3px 10px rgba(0,0,0,0.04);}
-  .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 6px 18px rgba(23,23,23,0.04);margin-bottom:14px;}
-  input,select,textarea,button{font-family:inherit}
-  input,select,textarea{padding:8px;border:1px solid #ddd;border-radius:8px;font-size:14px;width:100%;background:transparent}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-  .btn{padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:white;cursor:pointer}
-  .btn.secondary{background:transparent;border:1px solid #ddd;color:#111}
-  .btn.small{padding:6px 8px;font-size:13px}
-  .btn.danger{background:var(--danger);color:#fff}
-  .btn.success{background:var(--success);color:#fff}
-  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
-  th,td{padding:8px;border-bottom:1px solid #f0f0f0;text-align:left;vertical-align:middle}
-  th{background:#fafafa;color:#333}
-  .muted{color:var(--muted)}
-  .rows{display:flex;gap:8px;align-items:center}
-  .accountSelect{width:320px}
-  .amount{width:140px}
-  .indexCol{width:40px;flex:0 0 40px}
-  .navs{display:flex;gap:6px}
-  .right{text-align:right}
-  .warn{color:var(--danger);font-weight:600}
-  @media (max-width:880px){
-    .rows{flex-direction:column;align-items:stretch}
-    .accountSelect{width:100%}
-    .amount{width:100%}
-    .indexCol{width:auto;flex:auto}
-  }
-  .report-meta{font-size:14px;margin-bottom:8px}
-  .report-summary{margin-top:12px;font-weight:600}
-  .hr-line{border-top:1px solid #ddd;margin:8px 0}
-
-  /* transaction list & suggestions */
-  #transaction-list { max-height: 380px; overflow:auto; border:1px solid #eee; border-radius:8px; padding:6px; background: #fff; }
-  .tx-row { padding:8px; border-bottom:1px solid #f4f4f4; cursor:pointer; }
-  .tx-row:hover { background:#fafafa; }
-  .tx-active { background: #fff7d6; }
-  mark { background: #ffe58a; padding:0 2px; border-radius:2px; }
-  .suggestions { position: absolute; background:white; border:1px solid #ddd; z-index:50; max-height:160px; overflow:auto; width:100%; border-radius:6px; box-shadow:0 6px 14px rgba(0,0,0,0.06); }
-  .suggestion-item{ padding:8px; cursor:pointer }
-  .suggestion-item:hover{ background:#f6f6f6 }
-  .relative{ position:relative }
-</style>
-
-<!-- Supabase UMD -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.1/dist/umd/supabase.js"></script>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Accounting — Full App</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- jsPDF CDN for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-<div class="app">
-  <header>
-    <h1>Personal Ledger — Complete</h1>
-    <div class="note">Supabase storage. Double-entry (multi-line). Professional reports with opening/closing balances.</div>
-  </header>
+  <div id="app" class="app">
+    <aside class="sidebar">
+      <div class="brand">ACCT</div>
+      <nav class="nav">
+        <button data-section="dashboard" class="nav-btn active">Dashboard</button>
+        <button data-section="accounts" class="nav-btn">Accounts</button>
+        <button data-section="vouchers" class="nav-btn">Vouchers</button>
+        <button data-section="reports" class="nav-btn">Reports</button>
+      </nav>
+      <div class="version">v1.0</div>
+    </aside>
 
-  <div class="tabs card" id="tabs">
-    <button class="tab active" data-tab="dashboard">Dashboard</button>
-    <button class="tab" data-tab="accounts">Accounts</button>
-    <button class="tab" data-tab="transactions">Transactions</button>
-    <button class="tab" data-tab="reports">Reports</button>
+    <main class="main">
+      <header class="topbar">
+        <div class="title">Simple Accounting — Local</div>
+        <div class="actions">
+          <button id="openAddAccount" class="btn">+ Add Account</button>
+          <button id="newVoucher" class="btn ghost">+ New Voucher</button>
+          <button id="exportSummary" class="btn ghost">Export Summary (PDF)</button>
+        </div>
+      </header>
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="page">
+        <h2>Dashboard</h2>
+        <div class="cards" id="cards"></div>
+        <div class="recent">
+          <h3>Recent Vouchers</h3>
+          <div id="recentVouchers"></div>
+        </div>
+      </section>
+
+      <!-- ACCOUNTS -->
+      <section id="accounts" class="page hidden">
+        <h2>Accounts</h2>
+        <div class="panel">
+          <div class="panel-left">
+            <div class="card">
+              <h4>Create Account</h4>
+              <form id="formAddAccount">
+                <label>Account Name
+                  <input id="accName" required />
+                </label>
+                <label>Category
+                  <select id="accCategory">
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank</option>
+                    <option value="expense">Expense</option>
+                    <option value="personal">Personal</option>
+                  </select>
+                </label>
+                <label>Opening Balance
+                  <input id="accOpening" type="number" step="0.01" value="0" />
+                </label>
+                <div class="form-actions">
+                  <button type="submit" class="btn">Create</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="panel-right">
+            <div class="card">
+              <h4>Account List</h4>
+              <table id="tblAccounts" class="table">
+                <thead>
+                  <tr>
+                    <th>Acc No</th><th>Name</th><th>Category</th><th>Balance</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VOUCHERS -->
+      <section id="vouchers" class="page hidden">
+        <h2>Vouchers</h2>
+        <div class="panel">
+          <div class="panel-left">
+            <div class="card">
+              <h4>Create / Edit Voucher</h4>
+              <label>Date<input id="vDate" type="date" /></label>
+              <label>Narration<input id="vNarr" /></label>
+              <div class="voucher-entries" id="voucherEntries"></div>
+              <div class="voucher-actions">
+                <button id="addVoucherLine" class="btn">Add Entry</button>
+                <button id="saveVoucherBtn" class="btn">Save Voucher</button>
+                <button id="clearVoucherBtn" class="btn ghost">Clear</button>
+                <div class="chip" id="voucherTotals">Dr: 0.00 | Cr: 0.00</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-right">
+            <div class="card">
+              <h4>Existing Vouchers</h4>
+              <div class="voucher-nav">
+                <button id="prevV" class="btn ghost">◀ Prev</button>
+                <button id="nextV" class="btn ghost">Next ▶</button>
+                <span id="currentVoucherPos">-</span>
+              </div>
+              <table id="tblVouchers" class="table">
+                <thead>
+                  <tr>
+                    <th>Date</th><th>Narration</th><th>Dr</th><th>Cr</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="reports" class="page hidden">
+        <h2>Reports</h2>
+        <div class="card">
+          <div class="filters">
+            <label>Account<select id="reportAccount"></select></label>
+            <label>From<input id="reportFrom" type="date" /></label>
+            <label>To<input id="reportTo" type="date" /></label>
+            <div class="form-actions">
+              <button id="runReport" class="btn">Generate</button>
+              <button id="exportReport" class="btn ghost">Export PDF</button>
+            </div>
+          </div>
+          <div id="reportResult"></div>
+        </div>
+      </section>
+
+      <footer class="footer">Simple Accounting — local prototype</footer>
+    </main>
   </div>
 
-  <!-- DASHBOARD -->
-  <div id="dashboardView" class="card">
-    <div style="display:flex;gap:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:220px" class="card">
-        <div class="muted">Current Total Balance (Cash + Bank)</div>
-        <div id="currentTotal" style="font-size:20px;font-weight:700;margin-top:6px">0.00</div>
-      </div>
-      <div style="flex:1;min-width:220px" class="card">
-        <div class="muted">Previous Total Balance (before last posted tx)</div>
-        <div id="previousTotal" style="font-size:20px;font-weight:700;margin-top:6px">0.00</div>
-      </div>
-      <div style="flex:1;min-width:220px" class="card">
-        <div class="muted">Controls</div>
-        <div style="margin-top:8px;" class="controls">
-          <button class="btn" id="clearAll">Clear All Data</button>
-          <button class="btn secondary" id="exportData">Export JSON</button>
-          <button class="btn secondary" id="importDataBtn">Import JSON</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:200px" class="card">
-        <div class="muted">Current Cash Amount Total</div>
-        <div id="cashTotal" style="font-size:18px;font-weight:600;margin-top:6px">0.00</div>
-      </div>
-      <div style="flex:1;min-width:200px" class="card">
-        <div class="muted">Current Bank Amount Total</div>
-        <div id="bankTotal" style="font-size:18px;font-weight:600;margin-top:6px">0.00</div>
-      </div>
-      <div style="flex:1;min-width:200px" class="card">
-        <div class="muted">Summary</div>
-        <div id="summaryText" style="margin-top:6px" class="muted">0 accounts, 0 transactions posted</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ACCOUNTS -->
-  <div id="accountsView" class="card" style="display:none">
-    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-      <div style="flex:1;min-width:260px">
-        <div class="muted">Open Account</div>
-        <div style="margin-top:8px">
-          <label>Account Name</label>
-          <input id="accName" placeholder="E.g. Cash on Hand, My Bank A" />
-          <label style="margin-top:8px">Type (cash, bank, expense, income, liability)</label>
-          <input id="accType" placeholder="E.g. cash, bank, expense, income" />
-          <label style="margin-top:8px">Narration (optional)</label>
-          <input id="accNarr" placeholder="Short narration" />
-          <label style="margin-top:8px">Opening Balance</label>
-          <input id="accOpening" type="text" value="0" />
-          <div style="margin-top:8px"><button class="btn" id="saveAccount">Save Account</button> <button class="btn secondary" id="resetAccount">Reset</button></div>
-        </div>
-      </div>
-
-      <div style="flex:1.4;min-width:420px">
-        <div class="muted">List of Accounts (serial order)</div>
-        <div style="margin-top:8px; max-height:420px; overflow:auto;">
-          <table id="accountsTable">
-            <thead><tr><th>#</th><th>Account</th><th>Type</th><th>Opening</th><th>Closing</th><th>Actions</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TRANSACTIONS -->
-  <div id="transactionsView" class="card" style="display:none">
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:360px">
-          <label>Voucher No / Date</label>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
-            <input id="voucherNo" readonly style="width:120px" />
-            <input id="voucherDate" type="date" style="width:160px" />
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="btn" id="btnNewEntry">New Entry</button>
-          <button class="btn secondary" id="btnEdit">Edit</button>
-          <button class="btn danger" id="btnDelete">Delete</button>
-        </div>
-
-        <div class="navs">
-          <button class="btn small" id="firstTx">⇤ First</button>
-          <button class="btn small" id="prevTx">◀ Prev</button>
-          <button class="btn small" id="nextTx">Next ▶</button>
-          <button class="btn small" id="lastTx">Last ⇥</button>
-        </div>
-      </div>
-
-      <!-- Search + Filters -->
-      <div class="card" style="padding:12px; display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px">
-          <input id="transaction-search" placeholder="Search transactions..." />
-        </div>
-        <div style="width:220px">
-          <select id="transaction-search-filter">
-            <option value="all">All</option>
-            <option value="date">Date</option>
-            <option value="voucher">Voucher</option>
-            <option value="description">Description</option>
-            <option value="account">Account</option>
-            <option value="amount">Amount</option>
-          </select>
-        </div>
-        <div style="width:160px;display:flex;gap:6px">
-          <button class="btn small" id="toggle-advanced">Advanced</button>
-          <button class="btn small secondary" id="clear-filters-btn">Clear</button>
-        </div>
-      </div>
-
-      <!-- Advanced Filters (collapsible) -->
-      <div id="advancedFiltersPanel" class="card" style="display:none">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <div style="flex:1;min-width:180px" class="relative">
-            <label>From</label>
-            <input id="filter-date-from" placeholder="YYYY-MM-DD" />
-            <div id="suggest-date-from" class="suggestions" style="display:none"></div>
-          </div>
-          <div style="flex:1;min-width:180px" class="relative">
-            <label>To</label>
-            <input id="filter-date-to" placeholder="YYYY-MM-DD" />
-            <div id="suggest-date-to" class="suggestions" style="display:none"></div>
-          </div>
-          <div style="flex:1;min-width:150px" class="relative">
-            <label>Min Amount</label>
-            <input id="filter-amount-min" placeholder="e.g. 1000" />
-            <div id="suggest-amount-min" class="suggestions" style="display:none"></div>
-          </div>
-          <div style="flex:1;min-width:150px" class="relative">
-            <label>Max Amount</label>
-            <input id="filter-amount-max" placeholder="e.g. 5000" />
-            <div id="suggest-amount-max" class="suggestions" style="display:none"></div>
-          </div>
-
-          <div style="flex:1 1 320px;min-width:240px" class="relative">
-            <label>Account</label>
-            <input id="filter-account" placeholder="Type account name..." />
-            <div id="suggest-account" class="suggestions" style="display:none"></div>
-          </div>
-
-          <div style="flex:1 1 320px;min-width:240px" class="relative">
-            <label>Description</label>
-            <input id="filter-description" placeholder="Type description..." />
-            <div id="suggest-description" class="suggestions" style="display:none"></div>
-          </div>
-
-          <div style="flex:1 1 200px;min-width:140px" class="relative">
-            <label>Voucher</label>
-            <input id="filter-voucher" placeholder="Voucher no..." />
-            <div id="suggest-voucher" class="suggestions" style="display:none"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- View mode -->
-      <div id="txViewArea" class="card" style="padding:12px">
-        <div id="txViewContent" class="muted">No transactions yet. Click 'New Entry' to create.</div>
-      </div>
-
-      <!-- Form mode -->
-      <div id="txFormArea" class="card" style="padding:12px;display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <div class="muted">Entry Form</div>
-          <div>
-            <button class="btn small" id="addLine">+ Add Line</button>
-            <button class="btn small" id="removeLine">− Remove Last</button>
-            <button class="btn success" id="btnPost">Finish & Post</button>
-            <button class="btn secondary" id="btnCancel">Cancel</button>
-          </div>
-        </div>
-
-        <div id="txLines" style="margin-top:12px"></div>
-
-        <div style="display:flex;justify-content:flex-end;gap:12px;align-items:center;margin-top:12px">
-          <div class="muted">Totals</div>
-          <div style="min-width:120px;text-align:right"><div class="muted" style="font-size:13px">CR Total</div><div id="crTotal" style="font-weight:700">0.00</div></div>
-          <div style="min-width:120px;text-align:right"><div class="muted" style="font-size:13px">DR Total</div><div id="drTotal" style="font-weight:700">0.00</div></div>
-        </div>
-        <div style="margin-top:10px" class="muted">Rules: each line either DR or CR (not both). At least 2 lines, totals must match to post.</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- REPORTS -->
-  <div id="reportsView" class="card" style="display:none">
-    <div style="display:flex;gap:12px;flex-direction:column">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label>Account</label>
-        <select id="reportAccount" style="min-width:260px"></select>
-        <label>From</label>
-        <input id="reportFrom" type="date" />
-        <label>To</label>
-        <input id="reportTo" type="date" />
-        <button class="btn" id="runReport">Search</button>
-        <button class="btn secondary" id="refreshReport">Refresh</button>
-      </div>
-
-      <div class="card" id="reportResult" style="padding:12px;display:none">
-        <div class="report-meta" id="reportMeta"></div>
-        <div id="reportOpening" style="font-weight:600;margin-bottom:6px"></div>
-        <div style="max-height:520px;overflow:auto">
-          <table id="reportTable">
-            <thead><tr><th>Voucher</th><th>Date</th><th>Narration</th><th class="right">DR</th><th class="right">CR</th><th class="right">Balance</th></tr></thead>
-            <tbody></tbody>
-            <tfoot>
-              <tr><td colspan="3" class="right"><b>Totals</b></td><td class="right" id="reportDRTotal">0.00</td><td class="right" id="reportCRTotal">0.00</td><td class="right" id="reportFinalBal">0.00</td></tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <div class="hr-line"></div>
-        <div style="display:flex;justify-content:space-between;flex-wrap:wrap">
-          <div class="report-summary">Closing Balance: <span id="closingBalance">0.00</span></div>
-          <div class="report-summary">Opening Balance to Carry Forward: <span id="carryForward">0.00</span></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <input type="file" id="importFile" accept="application/json" style="display:none" />
-</div>
-
-<!-- Link to app.js -->
-<script type="module" src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
