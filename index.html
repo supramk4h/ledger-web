@@ -1,155 +1,1772 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Simple Accounting — Full App</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- jsPDF CDN for PDF export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Al Rehman Protein Farms - Complete System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .tab-active {
+      border-bottom: 2px solid #0ea5e9;
+      color: #0ea5e9;
+    }
+    .table-scroll {
+      max-height: 500px;
+      overflow: auto;
+    }
+    .hidden {
+      display: none;
+    }
+    .muted {
+      color: #6b7280;
+    }
+    .danger {
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+    }
+    .warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+    }
+    .success {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+    }
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+    }
+    .positive {
+      color: #059669;
+    }
+    .negative {
+      color: #dc2626;
+    }
+    .aging-0 { background: #ecfdf5; }
+    .aging-1 { background: #fffbeb; }
+    .aging-2 { background: #fff5f5; }
+    .aging-3 { background: #fef2f2; }
+    .debit { color: #dc2626; }
+    .credit { color: #059669; }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .highlight {
+      background-color: #fef3c7;
+      transition: background-color 0.5s;
+    }
+    .btn-primary {
+      background-color: #0ea5e9;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .btn-primary:hover {
+      background-color: #0284c7;
+    }
+    .btn-secondary {
+      background-color: #f3f4f6;
+      color: #374151;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .btn-secondary:hover {
+      background-color: #e5e7eb;
+    }
+    .form-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 4px;
+      color: #374151;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 16px;
+    }
+    .table-header {
+      background-color: #f9fafb;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    .connection-status {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .connected {
+      background-color: #10b981;
+    }
+    .disconnected {
+      background-color: #ef4444;
+    }
+  </style>
 </head>
-<body>
-  <div id="app" class="app">
-    <aside class="sidebar">
-      <div class="brand">ACCT</div>
-      <nav class="nav">
-        <button data-section="dashboard" class="nav-btn active">Dashboard</button>
-        <button data-section="accounts" class="nav-btn">Accounts</button>
-        <button data-section="vouchers" class="nav-btn">Vouchers</button>
-        <button data-section="reports" class="nav-btn">Reports</button>
-      </nav>
-      <div class="version">v1.0</div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div class="title">Simple Accounting — Local</div>
-        <div class="actions">
-          <button id="openAddAccount" class="btn">+ Add Account</button>
-          <button id="newVoucher" class="btn ghost">+ New Voucher</button>
-          <button id="exportSummary" class="btn ghost">Export Summary (PDF)</button>
+<body class="bg-gray-50 text-gray-800">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-sky-700">Al Rehman Protein Farms</h1>
+        <p class="text-sm muted">Complete Management System with FIFO Aging</p>
+        <div class="flex items-center mt-1">
+          <span id="connectionStatus" class="connection-status disconnected"></span>
+          <span id="connectionText" class="text-xs">Connecting to server...</span>
         </div>
-      </header>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="globalSearch" type="search" placeholder="Search arti / farm / vehicle" class="form-input w-64" />
+        <button id="exportData" class="btn-secondary"><i class="fas fa-download mr-1"></i> Export JSON</button>
+        <button id="importDataBtn" class="btn-secondary"><i class="fas fa-upload mr-1"></i> Import JSON</button>
+        <input id="importFile" type="file" accept="application/json" class="hidden" />
+      </div>
+    </header>
 
+    <!-- Tabs -->
+    <nav class="mb-6 border-b bg-white rounded-md shadow-sm">
+      <div class="flex space-x-2 p-2 overflow-auto">
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="dashboard"><i class="fas fa-tachometer-alt mr-2"></i>Dashboard</button>
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="farms"><i class="fas fa-tractor mr-2"></i>Farms</button>
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="artis"><i class="fas fa-users mr-2"></i>Arti Accounts</button>
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="sales"><i class="fas fa-shopping-cart mr-2"></i>Sales</button>
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="receivables"><i class="fas fa-file-invoice-dollar mr-2"></i>Receivables</button>
+        <button class="tab px-4 py-2 rounded-md hover:bg-sky-50" data-tab="reports"><i class="fas fa-chart-bar mr-2"></i>Reports</button>
+      </div>
+    </nav>
+
+    <!-- Content areas -->
+    <main>
       <!-- DASHBOARD -->
-      <section id="dashboard" class="page">
-        <h2>Dashboard</h2>
-        <div class="cards" id="cards"></div>
-        <div class="recent">
-          <h3>Recent Vouchers</h3>
-          <div id="recentVouchers"></div>
+      <section id="tab-dashboard" class="tab-content bg-white p-4 rounded-md shadow-sm fade-in">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div class="card">
+            <div class="text-sm muted">Total Sales</div>
+            <div id="kpiSales" class="text-xl font-semibold">0</div>
+          </div>
+          <div class="card">
+            <div class="text-sm muted">Payments Received</div>
+            <div id="kpiPayments" class="text-xl font-semibold">0</div>
+          </div>
+          <div class="card">
+            <div class="text-sm muted">Total Receivables</div>
+            <div id="kpiReceivables" class="text-xl font-semibold">0</div>
+          </div>
+          <div class="card">
+            <div class="text-sm muted">Active Farms</div>
+            <div id="kpiFarms" class="text-xl font-semibold">0</div>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div class="card">
+            <div class="flex justify-between">
+              <div class="text-sm muted">Farm Bird Status</div>
+              <div id="kpiTotalBirds" class="font-semibold">0</div>
+            </div>
+            <div id="farmListSmall" class="mt-3 table-scroll"></div>
+          </div>
+
+          <div class="card">
+            <div class="flex justify-between">
+              <div class="text-sm muted">Top Artis by Balance</div>
+              <div id="kpiArtis" class="font-semibold">0</div>
+            </div>
+            <div id="artiListSmall" class="mt-3 table-scroll"></div>
+          </div>
+        </div>
+        
+        <div class="card mb-6">
+          <div class="flex justify-between items-center mb-2">
+            <div class="text-sm muted">Aging Report Summary (FIFO Method)</div>
+            <button id="refreshAging" class="btn-secondary"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
+          </div>
+          <div id="agingSummary" class="grid grid-cols-1 md:grid-cols-4 gap-2"></div>
+        </div>
+        
+        <div class="card">
+          <div class="text-sm muted mb-2">Recent Alerts</div>
+          <div id="alertsBox" class="space-y-2"></div>
         </div>
       </section>
 
-      <!-- ACCOUNTS -->
-      <section id="accounts" class="page hidden">
-        <h2>Accounts</h2>
-        <div class="panel">
-          <div class="panel-left">
+      <!-- FARMS -->
+      <section id="tab-farms" class="tab-content hidden bg-white p-4 rounded-md shadow-sm fade-in">
+        <div class="flex gap-4">
+          <div class="w-full md:w-1/3">
             <div class="card">
-              <h4>Create Account</h4>
-              <form id="formAddAccount">
-                <label>Account Name
-                  <input id="accName" required />
-                </label>
-               <label>Category
-               <select id="accCategory">
-               <option value="cash">Cash</option>
-               <option value="bank">Bank</option>
-               <option value="expense">Expense</option>
-               <option value="personal">Personal</option>
-               <option value="income">Income</option>
-              </select>
-              </label>
-                <label>Opening Balance
-                  <input id="accOpening" type="number" step="0.01" value="0" />
-                </label>
-                <div class="form-actions">
-                  <button type="submit" class="btn">Create</button>
+              <h3 class="font-semibold mb-2">Add / Edit Farm</h3>
+              <div class="space-y-2">
+                <input id="farmId" type="hidden" />
+                <div>
+                  <label class="form-label">Farm Name</label>
+                  <input id="farmName" class="form-input" />
                 </div>
-              </form>
+                <div>
+                  <label class="form-label">Location</label>
+                  <input id="farmLocation" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Total Birds</label>
+                  <input id="farmTotalBirds" type="number" min="0" class="form-input" />
+                </div>
+                <div class="flex gap-2">
+                  <button id="saveFarm" class="btn-primary">Save Farm</button>
+                  <button id="clearFarm" class="btn-secondary">Clear</button>
+                </div>
+              </div>
             </div>
           </div>
-
-          <div class="panel-right">
+          <div class="w-full md:w-2/3">
             <div class="card">
-              <h4>Account List</h4>
-              <table id="tblAccounts" class="table">
-                <thead>
-                  <tr>
-                    <th>Acc No</th><th>Name</th><th>Category</th><th>Balance</th><th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+              <h3 class="font-semibold mb-2">Farms List</h3>
+              <div class="mb-2 flex gap-2">
+                <input id="farmSearch" placeholder="Search farms" class="form-input" />
+              </div>
+              <div class="table-scroll border rounded-md">
+                <table class="w-full text-sm">
+                  <thead class="table-header sticky top-0">
+                    <tr>
+                      <th class="p-2 text-left">Name</th>
+                      <th class="p-2 text-left">Location</th>
+                      <th class="p-2">Total</th>
+                      <th class="p-2">Sold</th>
+                      <th class="p-2">Remaining</th>
+                      <th class="p-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="farmsTableBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- VOUCHERS -->
-      <section id="vouchers" class="page hidden">
-        <h2>Vouchers</h2>
-        <div class="panel">
-          <div class="panel-left">
+      <!-- ARTIS -->
+      <section id="tab-artis" class="tab-content hidden bg-white p-4 rounded-md shadow-sm fade-in">
+        <div class="flex gap-4">
+          <div class="w-full md:w-1/3">
             <div class="card">
-              <h4>Create / Edit Voucher</h4>
-              <label>Date<input id="vDate" type="date" /></label>
-              <label>Narration<input id="vNarr" /></label>
-              <div class="voucher-entries" id="voucherEntries"></div>
-              <div class="voucher-actions">
-                <button id="addVoucherLine" class="btn">Add Entry</button>
-                <button id="saveVoucherBtn" class="btn">Save Voucher</button>
-                <button id="clearVoucherBtn" class="btn ghost">Clear</button>
-                <div class="chip" id="voucherTotals">Dr: 0.00 | Cr: 0.00</div>
+              <h3 class="font-semibold mb-2">Add / Edit Arti</h3>
+              <div class="space-y-2">
+                <input id="artiId" type="hidden" />
+                <div>
+                  <label class="form-label">Arti Name</label>
+                  <input id="artiName" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Contact</label>
+                  <input id="artiContact" class="form-input" />
+                </div>
+                <div class="flex gap-2">
+                  <button id="saveArti" class="btn-primary">Save Arti</button>
+                  <button id="clearArti" class="btn-secondary">Clear</button>
+                </div>
               </div>
             </div>
           </div>
-
-          <div class="panel-right">
+          <div class="w-full md:w-2/3">
             <div class="card">
-              <h4>Existing Vouchers</h4>
-              <div class="voucher-nav">
-                <button id="prevV" class="btn ghost">◀ Prev</button>
-                <button id="nextV" class="btn ghost">Next ▶</button>
-                <span id="currentVoucherPos">-</span>
+              <h3 class="font-semibold mb-2">Arti List</h3>
+              <div class="mb-2 flex gap-2">
+                <input id="artiSearch" placeholder="Search artis" class="form-input" />
               </div>
-              <table id="tblVouchers" class="table">
-                <thead>
-                  <tr>
-                    <th>Date</th><th>Narration</th><th>Dr</th><th>Cr</th><th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+              <div class="table-scroll border rounded-md">
+                <table class="w-full text-sm">
+                  <thead class="table-header sticky top-0">
+                    <tr>
+                      <th class="p-2 text-left">Name</th>
+                      <th class="p-2">Purchases</th>
+                      <th class="p-2">Payments</th>
+                      <th class="p-2">Balance</th>
+                      <th class="p-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="artisTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SALES -->
+      <section id="tab-sales" class="tab-content hidden bg-white p-4 rounded-md shadow-sm fade-in">
+        <div class="flex gap-4">
+          <div class="w-full md:w-1/3">
+            <div class="card">
+              <h3 class="font-semibold mb-2">Record Sale</h3>
+              <div class="space-y-2">
+                <input id="saleId" type="hidden" />
+                <div>
+                  <label class="form-label">Date</label>
+                  <input id="saleDate" type="date" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Farm</label>
+                  <select id="saleFarm" class="form-input"></select>
+                </div>
+                <div>
+                  <label class="form-label">Vehicle No</label>
+                  <input id="saleVehicle" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Crates</label>
+                  <input id="saleCrates" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Birds</label>
+                  <input id="saleBirds" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Gross Weight</label>
+                  <input id="saleWeight" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Katoti</label>
+                  <input id="saleKatoti" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Net Weight</label>
+                  <input id="saleNet" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Rate (per unit)</label>
+                  <input id="saleRate" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Amount (auto)</label>
+                  <input id="saleAmount" type="number" class="form-input" readonly />
+                </div>
+                <div>
+                  <label class="form-label">Arti</label>
+                  <select id="saleArti" class="form-input"></select>
+                </div>
+                <div class="flex gap-2">
+                  <button id="saveSale" class="btn-primary">Save Sale</button>
+                  <button id="clearSale" class="btn-secondary">Clear</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="w-full md:w-2/3">
+            <div class="card">
+              <h3 class="font-semibold mb-2">Sales Records</h3>
+              <div class="mb-2 flex gap-2">
+                <input id="saleFilterSearch" placeholder="Search sales by arti / farm / vehicle" class="form-input w-1/2" />
+                <input id="saleFrom" type="date" class="form-input" />
+                <input id="saleTo" type="date" class="form-input" />
+                <button id="applySaleFilter" class="btn-secondary">Apply</button>
+                <button id="resetSaleFilter" class="btn-secondary">Reset</button>
+              </div>
+              <div class="table-scroll border rounded-md">
+                <table class="w-full text-sm">
+                  <thead class="table-header sticky top-0">
+                    <tr>
+                      <th class="p-2">Date</th>
+                      <th class="p-2">Farm</th>
+                      <th class="p-2">Vehicle</th>
+                      <th class="p-2">Birds</th>
+                      <th class="p-2">Net</th>
+                      <th class="p-2">Rate</th>
+                      <th class="p-2">Amount</th>
+                      <th class="p-2">Arti</th>
+                      <th class="p-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="salesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RECEIVABLES -->
+      <section id="tab-receivables" class="tab-content hidden bg-white p-4 rounded-md shadow-sm fade-in">
+        <div class="flex gap-4">
+          <div class="w-full md:w-1/3">
+            <div class="card">
+              <h3 class="font-semibold mb-2">Receive Payment</h3>
+              <div class="space-y-2">
+                <div>
+                  <label class="form-label">Date</label>
+                  <input id="recDate" type="date" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Arti</label>
+                  <select id="recArti" class="form-input"></select>
+                </div>
+                <div>
+                  <label class="form-label">Amount</label>
+                  <input id="recAmount" type="number" class="form-input" />
+                </div>
+                <div>
+                  <label class="form-label">Mode</label>
+                  <select id="recMode" class="form-input">
+                    <option>Cash</option>
+                    <option>Bank</option>
+                    <option>Transfer</option>
+                  </select>
+                </div>
+                <div class="flex gap-2">
+                  <button id="saveRec" class="btn-primary">Save Payment</button>
+                  <button id="clearRec" class="btn-secondary">Clear</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="w-full md:w-2/3">
+            <div class="card">
+              <div class="flex justify-between items-center mb-2">
+                <h3 class="font-semibold">Receivables Summary (FIFO Aging)</h3>
+                <div class="flex gap-2">
+                  <input id="receivablesSearch" placeholder="Search arti..." class="form-input" />
+                  <button id="refreshReceivables" class="btn-secondary"><i class="fas fa-sync-alt mr-1"></i> Refresh</button>
+                  <button id="exportAging" class="btn-secondary"><i class="fas fa-file-export mr-1"></i> Export</button>
+                </div>
+              </div>
+              <div class="table-scroll border rounded-md">
+                <table class="w-full text-sm">
+                  <thead class="table-header sticky top-0">
+                    <tr>
+                      <th class="p-2">Arti</th>
+                      <th class="p-2">Total Due</th>
+                      <th class="p-2">1-10 Days</th>
+                      <th class="p-2">10-20 Days</th>
+                      <th class="p-2">20-40 Days</th>
+                      <th class="p-2">40+ Days</th>
+                      <th class="p-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="receivablesBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <!-- REPORTS -->
-      <section id="reports" class="page hidden">
-        <h2>Reports</h2>
+      <section id="tab-reports" class="tab-content hidden bg-white p-4 rounded-md shadow-sm fade-in">
         <div class="card">
-          <div class="filters">
-            <label>Account<select id="reportAccount"></select></label>
-            <label>From<input id="reportFrom" type="date" /></label>
-            <label>To<input id="reportTo" type="date" /></label>
-            <div class="form-actions">
-              <button id="runReport" class="btn">Generate</button>
-              <button id="exportReport" class="btn ghost">Export PDF</button>
+          <h3 class="font-semibold mb-2">Comprehensive Reports</h3>
+          <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div>
+              <label class="form-label">From</label>
+              <input id="repFrom" type="date" class="form-input" />
+            </div>
+            <div>
+              <label class="form-label">To</label>
+              <input id="repTo" type="date" class="form-input" />
+            </div>
+            <div class="flex items-end gap-2">
+              <button id="runReport" class="btn-primary">Run Report</button>
+              <button id="exportCsv" class="btn-secondary">Export CSV</button>
             </div>
           </div>
-          <div id="reportResult"></div>
+
+          <div class="mb-3 flex gap-2">
+            <input id="reportSearch" placeholder="Search inside report" class="form-input" />
+            <select id="reportType" class="form-input">
+              <option value="summary">Summary Report</option>
+              <option value="daily">Daily Sales Report</option>
+              <option value="monthly">Monthly Summary</option>
+              <option value="arti">Arti Ledger</option>
+              <option value="farm">Farm Performance</option>
+              <option value="receivables">Receivables Aging</option>
+              <option value="payment">Payment Collection</option>
+            </select>
+          </div>
+
+          <div id="reportOutput" class="border rounded-md p-3 table-scroll"></div>
         </div>
       </section>
-
-      <footer class="footer">Simple Accounting — local prototype</footer>
     </main>
+
+    <footer class="mt-6 text-sm muted text-center">Al Rehman Protein Farms - Complete Management System with FIFO Aging</footer>
   </div>
 
-  <script src="app.js"></script>
+  <script>
+    // Complete Chicken Farm Management System with FIFO Aging and Supabase Integration
+    (() => {
+      // Supabase configuration
+      const SUPABASE_URL = 'https://jrgpflnuxtlaimavboya.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyZ3BmbG51eHRsYWltYXZib3lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3NDU5NzUsImV4cCI6MjA3NTMyMTk3NX0.hWuihEzoHMjM2mSpN0IxVhduVO4JVzTXhThdmFjN7Hs';
+      
+      // Initialize Supabase client
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      
+      // Default state with sample data
+      const defaultState = {
+        farms: [
+          { id: "farm_1", name: "Al Rehman Protein Farm 1", location: "Karachi - SITE", totalBirds: 12000, soldBirds: 11800 },
+          { id: "farm_2", name: "Al Rehman Protein Farm 2", location: "Karachi - Korangi", totalBirds: 15000, soldBirds: 14500 },
+          { id: "farm_3", name: "Al Rehman Protein Farm 3", location: "Karachi - Landhi", totalBirds: 10000, soldBirds: 9800 },
+          { id: "farm_4", name: "Al Rehman Protein Farm 4", location: "Hyderabad", totalBirds: 8000, soldBirds: 7800 },
+          { id: "farm_5", name: "Al Rehman Protein Farm 5", location: "Thatta", totalBirds: 6000, soldBirds: 5900 }
+        ],
+        artis: [
+          { id: "arti_1", name: "Ahmed Ali", contact: "0300-1112233", opening: 0 },
+          { id: "arti_2", name: "Bilal Khan", contact: "0300-2223344", opening: 0 },
+          { id: "arti_3", name: "Chaudhry Nadeem", contact: "0300-3334455", opening: 0 },
+          { id: "arti_4", name: "Danish Raza", contact: "0300-4445566", opening: 0 },
+          { id: "arti_5", name: "Ehsan Ullah", contact: "0300-5556677", opening: 0 }
+        ],
+        sales: [],
+        receipts: []
+      };
+
+      let state = JSON.parse(JSON.stringify(defaultState));
+
+      // Elements shortcut
+      const $ = id => document.getElementById(id);
+
+      // Utility functions
+      const uid = (p = 'id') => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const nowDate = () => new Date().toISOString().slice(0, 10);
+      const num = v => v === null || v === '' || isNaN(v) ? 0 : Number(v);
+      const fmt = v => Number(v || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const escapeHtml = s => s ? String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
+
+      // Highlight effect for updated elements
+      function highlightElement(elementId) {
+        const element = $(elementId);
+        if (element) {
+          element.classList.add('highlight');
+          setTimeout(() => {
+            element.classList.remove('highlight');
+          }, 2000);
+        }
+      }
+
+      // Update connection status
+      function updateConnectionStatus(connected) {
+        const status = $('connectionStatus');
+        const text = $('connectionText');
+        
+        if (connected) {
+          status.className = 'connection-status connected';
+          text.textContent = 'Connected to Supabase';
+        } else {
+          status.className = 'connection-status disconnected';
+          text.textContent = 'Disconnected - Using local storage';
+        }
+      }
+
+      // Save / load with Supabase
+      async function saveState() {
+        try {
+          const { data, error } = await supabase
+            .from('chicken_farm_data')
+            .upsert({ id: 1, data: state });
+            
+          if (error) throw error;
+          
+          updateConnectionStatus(true);
+          renderAll();
+          return true;
+        } catch (error) {
+          console.error('Error saving to Supabase:', error);
+          updateConnectionStatus(false);
+          
+          // Fallback to localStorage
+          localStorage.setItem('alrehman_farms_complete', JSON.stringify(state));
+          renderAll();
+          return false;
+        }
+      }
+
+      async function loadState() {
+        try {
+          const { data, error } = await supabase
+            .from('chicken_farm_data')
+            .select('data')
+            .eq('id', 1)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data && data.data) {
+            state = data.data;
+            updateConnectionStatus(true);
+          } else {
+            // No data in Supabase, try localStorage
+            const raw = localStorage.getItem('alrehman_farms_complete');
+            if (raw) {
+              state = JSON.parse(raw);
+            }
+            updateConnectionStatus(false);
+          }
+        } catch (error) {
+          console.error('Error loading from Supabase:', error);
+          
+          // Fallback to localStorage
+          const raw = localStorage.getItem('alrehman_farms_complete');
+          if (raw) {
+            state = JSON.parse(raw);
+          }
+          updateConnectionStatus(false);
+        }
+      }
+
+      // Tab switching
+      function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => {
+          t.classList.remove('tab-active', 'bg-sky-50');
+        });
+
+        const activeTab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        if (activeTab) {
+          activeTab.classList.add('tab-active', 'bg-sky-50');
+        }
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.add('hidden');
+        });
+
+        const activeContent = $(`tab-${tabName}`);
+        if (activeContent) {
+          activeContent.classList.remove('hidden');
+          // Trigger rendering when switching to specific tabs
+          if (tabName === 'receivables') {
+            renderReceivables();
+          } else if (tabName === 'reports') {
+            runReport();
+          }
+        }
+      }
+
+      // FIFO Aging Calculation - Fixed implementation
+      function calculateFIFOAging(artiId, asOfDate = new Date()) {
+        const arti = state.artis.find(a => a.id === artiId);
+        if (!arti) return { buckets: { '1-10': 0, '10-20': 0, '20-40': 0, '40+': 0 }, total: 0 };
+        
+        // Get all sales for this arti sorted by date (oldest first)
+        const sales = state.sales
+          .filter(s => s.artiId === artiId)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Get all receipts for this arti sorted by date (oldest first)
+        const receipts = state.receipts
+          .filter(r => r.artiId === artiId)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Create FIFO allocation
+        let remainingReceipts = [...receipts];
+        const unpaidSales = [];
+        
+        for (const sale of sales) {
+          let unpaidAmount = sale.amount;
+          
+          // Apply receipts to this sale (FIFO)
+          for (let i = 0; i < remainingReceipts.length && unpaidAmount > 0; i++) {
+            const receipt = remainingReceipts[i];
+            if (receipt.amount <= 0) continue;
+            
+            const appliedAmount = Math.min(unpaidAmount, receipt.amount);
+            unpaidAmount -= appliedAmount;
+            receipt.amount -= appliedAmount;
+            
+            // If receipt is fully used, mark it as zero
+            if (receipt.amount <= 0) {
+              remainingReceipts[i].amount = 0;
+            }
+          }
+          
+          if (unpaidAmount > 0) {
+            const saleDate = new Date(sale.date);
+            const ageInDays = Math.floor((asOfDate - saleDate) / (1000 * 60 * 60 * 24));
+            unpaidSales.push({
+              ...sale,
+              unpaidAmount,
+              age: ageInDays
+            });
+          }
+        }
+        
+        // Categorize unpaid amounts into aging buckets
+        const buckets = { '1-10': 0, '10-20': 0, '20-40': 0, '40+': 0 };
+        let total = 0;
+        
+        unpaidSales.forEach(sale => {
+          total += sale.unpaidAmount;
+          if (sale.age <= 10) {
+            buckets['1-10'] += sale.unpaidAmount;
+          } else if (sale.age <= 20) {
+            buckets['10-20'] += sale.unpaidAmount;
+          } else if (sale.age <= 40) {
+            buckets['20-40'] += sale.unpaidAmount;
+          } else {
+            buckets['40+'] += sale.unpaidAmount;
+          }
+        });
+        
+        return { buckets, total, unpaidSales };
+      }
+
+      // Arti totals calculation
+      function artiTotals(artiId) {
+        const purchases = state.sales
+          .filter(s => s.artiId === artiId)
+          .reduce((sum, sale) => sum + num(sale.amount), 0);
+        const payments = state.receipts
+          .filter(r => r.artiId === artiId)
+          .reduce((sum, receipt) => sum + num(receipt.amount), 0);
+        const balance = purchases - payments;
+
+        return { purchases, payments, balance };
+      }
+
+      // Overall aging calculation for dashboard
+      function calculateOverallAging(asOfDate = new Date()) {
+        const buckets = { '1-10': 0, '10-20': 0, '20-40': 0, '40+': 0 };
+        
+        state.artis.forEach(arti => {
+          const aging = calculateFIFOAging(arti.id, asOfDate);
+          Object.keys(buckets).forEach(bucket => {
+            buckets[bucket] += aging.buckets[bucket];
+          });
+        });
+        
+        return buckets;
+      }
+
+      // Renderers
+      function renderFarmsTable() {
+        const q = ($('farmSearch').value || '').toLowerCase();
+        const body = $('farmsTableBody');
+        body.innerHTML = '';
+
+        state.farms.forEach(f => {
+          if (q && !(`${f.name} ${f.location}`.toLowerCase().includes(q))) return;
+
+          const remaining = Math.max(0, (f.totalBirds || 0) - (f.soldBirds || 0));
+          const tr = document.createElement('tr');
+          tr.className = 'border-b hover:bg-gray-50';
+          tr.innerHTML = `
+            <td class="p-2">${escapeHtml(f.name)}</td>
+            <td class="p-2">${escapeHtml(f.location)}</td>
+            <td class="p-2 text-center">${(f.totalBirds || 0).toLocaleString()}</td>
+            <td class="p-2 text-center">${(f.soldBirds || 0).toLocaleString()}</td>
+            <td class="p-2 text-center">${remaining.toLocaleString()}</td>
+            <td class="p-2 text-center">
+              <button class="editFarm px-2 py-1 border rounded-md hover:bg-gray-50" data-id="${f.id}">Edit</button>
+              <button class="delFarm px-2 py-1 border rounded-md hover:bg-gray-50 ml-1" data-id="${f.id}">Delete</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+
+        document.querySelectorAll('.editFarm').forEach(b => {
+          b.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            const f = state.farms.find(x => x.id === id);
+            if (!f) return;
+
+            $('farmId').value = f.id;
+            $('farmName').value = f.name;
+            $('farmLocation').value = f.location || '';
+            $('farmTotalBirds').value = f.totalBirds || '';
+          });
+        });
+
+        document.querySelectorAll('.delFarm').forEach(b => {
+          b.addEventListener('click', async e => {
+            const id = e.target.dataset.id;
+            if (!confirm('Delete farm and ALL its sales?')) return;
+
+            state.farms = state.farms.filter(x => x.id !== id);
+            state.sales = state.sales.filter(s => s.farmId !== id);
+            await saveState();
+          });
+        });
+      }
+
+      function renderArtisTable() {
+        const q = ($('artiSearch').value || '').toLowerCase();
+        const body = $('artisTableBody');
+        body.innerHTML = '';
+
+        state.artis.forEach(a => {
+          if (q && !(`${a.name} ${a.contact}`.toLowerCase().includes(q))) return;
+
+          const t = artiTotals(a.id);
+          const aging = calculateFIFOAging(a.id);
+          
+          const tr = document.createElement('tr');
+          tr.className = 'border-b hover:bg-gray-50';
+          tr.innerHTML = `
+            <td class="p-2">${escapeHtml(a.name)}</td>
+            <td class="p-2 text-right">${fmt(t.purchases)}</td>
+            <td class="p-2 text-right">${fmt(t.payments)}</td>
+            <td class="p-2 text-right ${t.balance > 0 ? 'text-red-600 font-semibold' : ''}">${fmt(t.balance)}</td>
+            <td class="p-2 text-center">
+              <button class="editArti px-2 py-1 border rounded-md hover:bg-gray-50" data-id="${a.id}">Edit</button>
+              <button class="delArti px-2 py-1 border rounded-md hover:bg-gray-50 ml-1" data-id="${a.id}">Delete</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+
+        document.querySelectorAll('.editArti').forEach(b => {
+          b.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            const a = state.artis.find(x => x.id === id);
+            if (!a) return;
+
+            $('artiId').value = a.id;
+            $('artiName').value = a.name;
+            $('artiContact').value = a.contact || '';
+          });
+        });
+
+        document.querySelectorAll('.delArti').forEach(b => {
+          b.addEventListener('click', async e => {
+            const id = e.target.dataset.id;
+            if (!confirm('Delete arti and related sales/receipts?')) return;
+
+            state.artis = state.artis.filter(x => x.id !== id);
+            state.sales = state.sales.filter(s => s.artiId !== id);
+            state.receipts = state.receipts.filter(r => r.artiId !== id);
+            await saveState();
+          });
+        });
+      }
+
+      function renderSalesTable() {
+        populateSelects();
+
+        const q = ($('saleFilterSearch').value || '').toLowerCase();
+        const from = $('saleFrom').value;
+        const to = $('saleTo').value;
+        const body = $('salesTableBody');
+        body.innerHTML = '';
+
+        const sortedSales = [...state.sales].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        sortedSales.forEach(s => {
+          if (q) {
+            const farmName = (state.farms.find(f => f.id === s.farmId) || {}).name || '';
+            const artiName = (state.artis.find(a => a.id === s.artiId) || {}).name || '';
+            if (!`${farmName} ${artiName} ${s.vehicle}`.toLowerCase().includes(q)) return;
+          }
+
+          if (from && s.date < from) return;
+          if (to && s.date > to) return;
+
+          const farmName = (state.farms.find(f => f.id === s.farmId) || {}).name || '';
+          const artiName = (state.artis.find(a => a.id === s.artiId) || {}).name || '';
+          const tr = document.createElement('tr');
+          tr.className = 'border-b hover:bg-gray-50';
+          tr.innerHTML = `
+            <td class="p-2">${s.date}</td>
+            <td class="p-2">${escapeHtml(farmName)}</td>
+            <td class="p-2">${escapeHtml(s.vehicle || '')}</td>
+            <td class="p-2 text-center">${(s.birds || 0).toLocaleString()}</td>
+            <td class="p-2 text-right">${fmt(s.net)}</td>
+            <td class="p-2 text-right">${fmt(s.rate)}</td>
+            <td class="p-2 text-right">${fmt(s.amount)}</td>
+            <td class="p-2">${escapeHtml(artiName)}</td>
+            <td class="p-2 text-center">
+              <button class="editSale px-2 py-1 border rounded-md hover:bg-gray-50" data-id="${s.id}">Edit</button>
+              <button class="delSale px-2 py-1 border rounded-md hover:bg-gray-50 ml-1" data-id="${s.id}">Delete</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+
+        document.querySelectorAll('.editSale').forEach(b => {
+          b.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            const s = state.sales.find(x => x.id === id);
+            if (!s) return;
+
+            $('saleId').value = s.id;
+            $('saleDate').value = s.date;
+            $('saleFarm').value = s.farmId;
+            $('saleVehicle').value = s.vehicle || '';
+            $('saleCrates').value = s.crates || '';
+            $('saleBirds').value = s.birds || '';
+            $('saleWeight').value = s.weight || '';
+            $('saleKatoti').value = s.katoti || '';
+            $('saleNet').value = s.net || '';
+            $('saleRate').value = s.rate || '';
+            $('saleAmount').value = s.amount || '';
+            $('saleArti').value = s.artiId;
+          });
+        });
+
+        document.querySelectorAll('.delSale').forEach(b => {
+          b.addEventListener('click', async e => {
+            const id = e.target.dataset.id;
+            if (!confirm('Delete sale?')) return;
+
+            const s = state.sales.find(x => x.id === id);
+            if (s) {
+              const farm = state.farms.find(f => f.id === s.farmId);
+              if (farm) {
+                farm.soldBirds = Math.max(0, (farm.soldBirds || 0) - (s.birds || 0));
+              }
+            }
+
+            state.sales = state.sales.filter(x => x.id !== id);
+            await saveState();
+          });
+        });
+      }
+
+      function renderReceivables() {
+        const q = ($('receivablesSearch').value || '').toLowerCase();
+        const body = $('receivablesBody');
+        body.innerHTML = '';
+
+        state.artis.forEach(a => {
+          if (q && !a.name.toLowerCase().includes(q)) return;
+          
+          const t = artiTotals(a.id);
+          const aging = calculateFIFOAging(a.id);
+          
+          if (t.balance <= 0) return; // Skip artis with no balance
+          
+          const tr = document.createElement('tr');
+          tr.className = 'border-b hover:bg-gray-50';
+          tr.innerHTML = `
+            <td class="p-2">${escapeHtml(a.name)}</td>
+            <td class="p-2 text-right font-semibold">${fmt(t.balance)}</td>
+            <td class="p-2 text-right aging-0">${fmt(aging.buckets['1-10'])}</td>
+            <td class="p-2 text-right aging-1">${fmt(aging.buckets['10-20'])}</td>
+            <td class="p-2 text-right aging-2">${fmt(aging.buckets['20-40'])}</td>
+            <td class="p-2 text-right aging-3">${fmt(aging.buckets['40+'])}</td>
+            <td class="p-2 text-center">
+              <button class="recPay px-2 py-1 border rounded-md hover:bg-gray-50" data-id="${a.id}">Receive</button>
+            </td>
+          `;
+          body.appendChild(tr);
+        });
+
+        document.querySelectorAll('.recPay').forEach(b => {
+          b.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            $('recArti').value = id;
+            switchTab('receivables');
+          });
+        });
+      }
+
+      function renderDashboard() {
+        const totalSales = state.sales.reduce((sum, sale) => sum + num(sale.amount), 0);
+        const totalReceipts = state.receipts.reduce((sum, receipt) => sum + num(receipt.amount), 0);
+        const totalReceivables = state.artis.reduce((sum, arti) => sum + Math.max(0, artiTotals(arti.id).balance), 0);
+
+        $('kpiSales').innerText = fmt(totalSales);
+        $('kpiPayments').innerText = fmt(totalReceipts);
+        $('kpiReceivables').innerText = fmt(totalReceivables);
+        $('kpiFarms').innerText = state.farms.length;
+        $('kpiArtis').innerText = state.artis.length;
+
+        // Farm list
+        $('farmListSmall').innerHTML = '';
+        let totalBirds = 0;
+        state.farms.forEach(f => {
+          const remaining = Math.max(0, (f.totalBirds || 0) - (f.soldBirds || 0));
+          totalBirds += f.totalBirds || 0;
+          $('farmListSmall').insertAdjacentHTML('beforeend',
+            `<div class="text-sm py-1 border-b">${escapeHtml(f.name)} - ${remaining.toLocaleString()} birds left</div>`);
+        });
+        $('kpiTotalBirds').innerText = totalBirds.toLocaleString();
+
+        // Arti list
+        $('artiListSmall').innerHTML = '';
+        const artisWithBalance = state.artis
+          .map(a => ({ ...a, balance: artiTotals(a.id).balance }))
+          .filter(a => a.balance > 0)
+          .sort((a, b) => b.balance - a.balance)
+          .slice(0, 5);
+
+        artisWithBalance.forEach(a => {
+          $('artiListSmall').insertAdjacentHTML('beforeend',
+            `<div class="text-sm py-1 border-b">${escapeHtml(a.name)} - ${fmt(a.balance)}</div>`);
+        });
+
+        // Aging summary - Fixed to work correctly
+        const aging = calculateOverallAging();
+        const totalAging = Object.values(aging).reduce((sum, val) => sum + val, 0);
+        
+        $('agingSummary').innerHTML = `
+          <div class="p-3 border rounded-md text-center aging-0">
+            <div class="text-sm muted">1-10 Days</div>
+            <div class="text-xl font-semibold">${fmt(aging['1-10'])}</div>
+            <div class="text-xs muted">${totalAging > 0 ? ((aging['1-10'] / totalAging) * 100).toFixed(1) : 0}%</div>
+          </div>
+          <div class="p-3 border rounded-md text-center aging-1">
+            <div class="text-sm muted">10-20 Days</div>
+            <div class="text-xl font-semibold">${fmt(aging['10-20'])}</div>
+            <div class="text-xs muted">${totalAging > 0 ? ((aging['10-20'] / totalAging) * 100).toFixed(1) : 0}%</div>
+          </div>
+          <div class="p-3 border rounded-md text-center aging-2">
+            <div class="text-sm muted">20-40 Days</div>
+            <div class="text-xl font-semibold">${fmt(aging['20-40'])}</div>
+            <div class="text-xs muted">${totalAging > 0 ? ((aging['20-40'] / totalAging) * 100).toFixed(1) : 0}%</div>
+          </div>
+          <div class="p-3 border rounded-md text-center aging-3">
+            <div class="text-sm muted">40+ Days</div>
+            <div class="text-xl font-semibold">${fmt(aging['40+'])}</div>
+            <div class="text-xs muted">${totalAging > 0 ? ((aging['40+'] / totalAging) * 100).toFixed(1) : 0}%</div>
+          </div>
+        `;
+
+        // Alerts
+        const alerts = [];
+        const today = new Date();
+        
+        state.artis.forEach(arti => {
+          const aging = calculateFIFOAging(arti.id, today);
+          if (aging.buckets['40+'] > 0) {
+            alerts.push(`<div class="p-2 danger rounded">Critical: ${escapeHtml(arti.name)} has ${fmt(aging.buckets['40+'])} overdue 40+ days</div>`);
+          } else if (aging.buckets['20-40'] > 0) {
+            alerts.push(`<div class="p-2 warning rounded">Warning: ${escapeHtml(arti.name)} has ${fmt(aging.buckets['20-40'])} overdue 20-40 days</div>`);
+          }
+        });
+
+        $('alertsBox').innerHTML = alerts.length > 0 
+          ? alerts.join('')
+          : '<div class="p-2 success rounded">No critical alerts - All receivables are within acceptable aging</div>';
+      }
+
+      function populateSelects() {
+        const saleFarm = $('saleFarm');
+        const saleArti = $('saleArti');
+        const recArti = $('recArti');
+
+        saleFarm.innerHTML = '<option value="">--Select Farm--</option>';
+        state.farms.forEach(f => {
+          saleFarm.insertAdjacentHTML('beforeend',
+            `<option value="${f.id}">${escapeHtml(f.name)}</option>`);
+        });
+
+        saleArti.innerHTML = '<option value="">--Select Arti--</option>';
+        recArti.innerHTML = '<option value="">--Select Arti--</option>';
+        state.artis.forEach(a => {
+          saleArti.insertAdjacentHTML('beforeend',
+            `<option value="${a.id}">${escapeHtml(a.name)}</option>`);
+          recArti.insertAdjacentHTML('beforeend',
+            `<option value="${a.id}">${escapeHtml(a.name)}</option>`);
+        });
+      }
+
+      // Enhanced Reports
+      function runReport() {
+        const from = $('repFrom').value;
+        const to = $('repTo').value;
+        const type = $('reportType').value;
+        const search = ($('reportSearch').value || '').toLowerCase();
+        let html = `<h3 class="font-semibold mb-2">${type.charAt(0).toUpperCase() + type.slice(1)} Report (${from || 'All'} to ${to || 'Today'})</h3>`;
+
+        const sales = state.sales.filter(s => (!from || s.date >= from) && (!to || s.date <= to));
+        const receipts = state.receipts.filter(r => (!from || r.date >= from) && (!to || r.date <= to));
+
+        if (type === 'summary') {
+          const totalS = sales.reduce((sum, s) => sum + num(s.amount), 0);
+          const totalR = receipts.reduce((sum, r) => sum + num(r.amount), 0);
+          const totalReceivables = state.artis.reduce((sum, arti) => sum + Math.max(0, artiTotals(arti.id).balance), 0);
+
+          html += `
+            <div class="mb-4 grid grid-cols-3 gap-4">
+              <div class="p-3 border rounded-md text-center">
+                <div class="text-sm muted">Total Sales</div>
+                <div class="text-xl font-semibold">${fmt(totalS)}</div>
+              </div>
+              <div class="p-3 border rounded-md text-center">
+                <div class="text-sm muted">Payments Received</div>
+                <div class="text-xl font-semibold">${fmt(totalR)}</div>
+              </div>
+              <div class="p-3 border rounded-md text-center">
+                <div class="text-sm muted">Outstanding</div>
+                <div class="text-xl font-semibold">${fmt(totalReceivables)}</div>
+              </div>
+            </div>
+          `;
+
+          // Top artis by sales
+          const artiSales = {};
+          sales.forEach(s => {
+            const artiName = (state.artis.find(a => a.id === s.artiId) || {}).name || 'Unknown';
+            artiSales[artiName] = (artiSales[artiName] || 0) + num(s.amount);
+          });
+
+          html += '<h4 class="mt-4 mb-2">Top Artis by Sales</h4><table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Arti</th><th class="p-2">Sales Amount</th><th class="p-2">Percentage</th></tr></thead><tbody>';
+          
+          Object.entries(artiSales)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .forEach(([arti, amount]) => {
+              const percentage = totalS > 0 ? ((amount / totalS) * 100).toFixed(1) : 0;
+              html += `
+                <tr>
+                  <td class="p-2">${escapeHtml(arti)}</td>
+                  <td class="p-2 text-right">${fmt(amount)}</td>
+                  <td class="p-2 text-right">${percentage}%</td>
+                </tr>
+              `;
+            });
+            
+          html += '</tbody></table>';
+
+        } else if (type === 'daily') {
+          // Daily sales report
+          const dailySales = {};
+          sales.forEach(s => {
+            dailySales[s.date] = (dailySales[s.date] || 0) + num(s.amount);
+          });
+
+          html += '<h4 class="mt-2 mb-2">Daily Sales Report</h4><table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Date</th><th class="p-2">Sales Amount</th></tr></thead><tbody>';
+          
+          Object.entries(dailySales)
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .forEach(([date, amount]) => {
+              html += `
+                <tr>
+                  <td class="p-2">${date}</td>
+                  <td class="p-2 text-right">${fmt(amount)}</td>
+                </tr>
+              `;
+            });
+            
+          html += '</tbody></table>';
+
+        } else if (type === 'monthly') {
+          // Monthly summary
+          const monthlyData = {};
+          sales.forEach(s => {
+            const month = s.date.substring(0, 7); // YYYY-MM
+            monthlyData[month] = monthlyData[month] || { sales: 0, receipts: 0 };
+            monthlyData[month].sales += num(s.amount);
+          });
+
+          receipts.forEach(r => {
+            const month = r.date.substring(0, 7);
+            monthlyData[month] = monthlyData[month] || { sales: 0, receipts: 0 };
+            monthlyData[month].receipts += num(r.amount);
+          });
+
+          html += '<h4 class="mt-2 mb-2">Monthly Summary</h4><table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Month</th><th class="p-2">Sales</th><th class="p-2">Receipts</th><th class="p-2">Net</th></tr></thead><tbody>';
+          
+          Object.entries(monthlyData)
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .forEach(([month, data]) => {
+              const net = data.sales - data.receipts;
+              html += `
+                <tr>
+                  <td class="p-2">${month}</td>
+                  <td class="p-2 text-right">${fmt(data.sales)}</td>
+                  <td class="p-2 text-right">${fmt(data.receipts)}</td>
+                  <td class="p-2 text-right ${net >= 0 ? 'positive' : 'negative'}">${fmt(net)}</td>
+                </tr>
+              `;
+            });
+            
+          html += '</tbody></table>';
+
+        } else if (type === 'receivables') {
+          // Detailed aging report
+          const today = new Date();
+          html += '<h4 class="mt-2 mb-2">Detailed Aging Report (FIFO Method)</h4><table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Arti</th><th class="p-2">Total Due</th><th class="p-2">1-10 Days</th><th class="p-2">10-20 Days</th><th class="p-2">20-40 Days</th><th class="p-2">40+ Days</th><th class="p-2">Oldest Invoice</th></tr></thead><tbody>';
+          
+          state.artis.forEach(arti => {
+            const aging = calculateFIFOAging(arti.id, today);
+            if (aging.total > 0) {
+              const oldestUnpaid = aging.unpaidSales.length > 0 
+                ? aging.unpaidSales.reduce((oldest, sale) => sale.date < oldest ? sale.date : oldest, aging.unpaidSales[0].date)
+                : 'N/A';
+                
+              html += `
+                <tr>
+                  <td class="p-2">${escapeHtml(arti.name)}</td>
+                  <td class="p-2 text-right font-semibold">${fmt(aging.total)}</td>
+                  <td class="p-2 text-right aging-0">${fmt(aging.buckets['1-10'])}</td>
+                  <td class="p-2 text-right aging-1">${fmt(aging.buckets['10-20'])}</td>
+                  <td class="p-2 text-right aging-2">${fmt(aging.buckets['20-40'])}</td>
+                  <td class="p-2 text-right aging-3">${fmt(aging.buckets['40+'])}</td>
+                  <td class="p-2">${oldestUnpaid}</td>
+                </tr>
+              `;
+            }
+          });
+          
+          html += '</tbody></table>';
+
+        } else if (type === 'payment') {
+          // Payment collection report
+          html += '<h4 class="mt-2 mb-2">Payment Collection Report</h4><table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Date</th><th class="p-2">Arti</th><th class="p-2">Amount</th><th class="p-2">Mode</th></tr></thead><tbody>';
+          
+          receipts
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .forEach(r => {
+              const artiName = (state.artis.find(a => a.id === r.artiId) || {}).name || 'Unknown';
+              if (search && !artiName.toLowerCase().includes(search)) return;
+              
+              html += `
+                <tr>
+                  <td class="p-2">${r.date}</td>
+                  <td class="p-2">${escapeHtml(artiName)}</td>
+                  <td class="p-2 text-right positive">${fmt(r.amount)}</td>
+                  <td class="p-2">${escapeHtml(r.mode)}</td>
+                </tr>
+              `;
+            });
+            
+          html += '</tbody></table>';
+        } else if (type === 'arti') {
+          // Arti Ledger Report
+          html += '<h4 class="mt-2 mb-2">Arti Ledger Report</h4>';
+          
+          const artisWithTransactions = state.artis.filter(arti => {
+            const hasSales = sales.some(s => s.artiId === arti.id);
+            const hasReceipts = receipts.some(r => r.artiId === arti.id);
+            return hasSales || hasReceipts;
+          });
+          
+          artisWithTransactions.forEach(arti => {
+            if (search && !arti.name.toLowerCase().includes(search)) return;
+            
+            html += `<h5 class="mt-4 font-semibold">${escapeHtml(arti.name)}</h5>`;
+            html += '<table class="w-full text-sm border"><thead class="bg-gray-50"><tr><th class="p-2">Date</th><th class="p-2">Type</th><th class="p-2">Description</th><th class="p-2">Debit</th><th class="p-2">Credit</th><th class="p-2">Balance</th></tr></thead><tbody>';
+            
+            let balance = 0;
+            const artiSales = sales.filter(s => s.artiId === arti.id);
+            const artiReceipts = receipts.filter(r => r.artiId === arti.id);
+            
+            // Combine and sort transactions by date
+            const transactions = [
+              ...artiSales.map(s => ({ ...s, type: 'Sale', amount: num(s.amount), isSale: true })),
+              ...artiReceipts.map(r => ({ ...r, type: 'Payment', amount: num(r.amount), isSale: false }))
+            ].sort((a, b) => a.date.localeCompare(b.date));
+            
+            transactions.forEach(t => {
+              if (t.isSale) {
+                balance += t.amount;
+                html += `
+                  <tr>
+                    <td class="p-2">${t.date}</td>
+                    <td class="p-2">Sale</td>
+                    <td class="p-2">Sale from ${escapeHtml((state.farms.find(f => f.id === t.farmId) || {}).name || 'Unknown')}</td>
+                    <td class="p-2 text-right debit">${fmt(t.amount)}</td>
+                    <td class="p-2 text-right">-</td>
+                    <td class="p-2 text-right">${fmt(balance)}</td>
+                  </tr>
+                `;
+              } else {
+                balance -= t.amount;
+                html += `
+                  <tr>
+                    <td class="p-2">${t.date}</td>
+                    <td class="p-2">Payment</td>
+                    <td class="p-2">Payment received (${escapeHtml(t.mode)})</td>
+                    <td class="p-2 text-right">-</td>
+                    <td class="p-2 text-right credit">${fmt(t.amount)}</td>
+                    <td class="p-2 text-right">${fmt(balance)}</td>
+                  </tr>
+                `;
+              }
+            });
+            
+            html += '</tbody></table>';
+          });
+        } else if (type === 'farm') {
+          // Farm Performance Report
+          html += '<h4 class="mt-2 mb-2">Farm Performance Report</h4>';
+          
+          state.farms.forEach(farm => {
+            if (search && !farm.name.toLowerCase().includes(search)) return;
+            
+            const farmSales = sales.filter(s => s.farmId === farm.id);
+            if (farmSales.length === 0) return;
+            
+            const totalBirdsSold = farmSales.reduce((sum, s) => sum + num(s.birds), 0);
+            const totalWeightSold = farmSales.reduce((sum, s) => sum + num(s.net), 0);
+            const totalRevenue = farmSales.reduce((sum, s) => sum + num(s.amount), 0);
+            const avgRate = totalWeightSold > 0 ? totalRevenue / totalWeightSold : 0;
+            
+            html += `
+              <div class="mb-4 p-3 border rounded-md">
+                <h5 class="font-semibold">${escapeHtml(farm.name)}</h5>
+                <div class="grid grid-cols-4 gap-2 mt-2">
+                  <div class="text-center">
+                    <div class="text-sm muted">Birds Sold</div>
+                    <div class="font-semibold">${totalBirdsSold.toLocaleString()}</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm muted">Weight Sold</div>
+                    <div class="font-semibold">${fmt(totalWeightSold)}</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm muted">Revenue</div>
+                    <div class="font-semibold">${fmt(totalRevenue)}</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-sm muted">Avg Rate</div>
+                    <div class="font-semibold">${fmt(avgRate)}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+        }
+
+        $('reportOutput').innerHTML = html;
+      }
+
+      function exportReportCSV() {
+        const from = $('repFrom').value;
+        const to = $('repTo').value;
+        const type = $('reportType').value;
+        
+        let rows = [];
+        let filename = 'report.csv';
+
+        if (type === 'summary') {
+          rows = [['Date', 'Arti', 'Farm', 'Vehicle', 'Birds', 'Amount']];
+          state.sales
+            .filter(s => (!from || s.date >= from) && (!to || s.date <= to))
+            .forEach(s => {
+              const farm = (state.farms.find(f => f.id === s.farmId) || {}).name || '';
+              const arti = (state.artis.find(a => a.id === s.artiId) || {}).name || '';
+              rows.push([s.date, arti, farm, s.vehicle || '', s.birds || 0, fmt(s.amount)]);
+            });
+          filename = 'sales_summary.csv';
+        } else if (type === 'receivables') {
+          rows = [['Arti', 'Total Due', '1-10 Days', '10-20 Days', '20-40 Days', '40+ Days']];
+          const today = new Date();
+          state.artis.forEach(arti => {
+            const aging = calculateFIFOAging(arti.id, today);
+            if (aging.total > 0) {
+              rows.push([
+                arti.name,
+                fmt(aging.total),
+                fmt(aging.buckets['1-10']),
+                fmt(aging.buckets['10-20']),
+                fmt(aging.buckets['20-40']),
+                fmt(aging.buckets['40+'])
+              ]);
+            }
+          });
+          filename = 'receivables_aging.csv';
+        }
+
+        const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      }
+
+      function exportAgingReport() {
+        const rows = [['Arti', 'Total Due', '1-10 Days', '10-20 Days', '20-40 Days', '40+ Days']];
+        const today = new Date();
+        state.artis.forEach(arti => {
+          const aging = calculateFIFOAging(arti.id, today);
+          if (aging.total > 0) {
+            rows.push([
+              arti.name,
+              fmt(aging.total),
+              fmt(aging.buckets['1-10']),
+              fmt(aging.buckets['10-20']),
+              fmt(aging.buckets['20-40']),
+              fmt(aging.buckets['40+'])
+            ]);
+          }
+        });
+
+        const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'aging_report.csv';
+        a.click();
+      }
+
+      function renderAll() {
+        populateSelects();
+        renderFarmsTable();
+        renderArtisTable();
+        renderSalesTable();
+        renderReceivables();
+        renderDashboard();
+      }
+
+      // Initialize the application
+      async function init() {
+        // Load data from Supabase
+        await loadState();
+        
+        // Set default dates
+        const today = nowDate();
+        $('saleDate').value = today;
+        $('recDate').value = today;
+        $('repFrom').value = today;
+        $('repTo').value = today;
+        $('saleFrom').value = today;
+        $('saleTo').value = today;
+
+        // Tabs
+        document.querySelectorAll('.tab').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab(btn.dataset.tab);
+          });
+        });
+
+        // Global search
+        $('globalSearch').addEventListener('input', e => {
+          const q = e.target.value.trim().toLowerCase();
+          if (!q) return;
+
+          const arti = state.artis.find(a => a.name.toLowerCase().includes(q));
+          if (arti) {
+            switchTab('artis');
+            $('artiSearch').value = q;
+            renderArtisTable();
+            return;
+          }
+
+          const farm = state.farms.find(f => f.name.toLowerCase().includes(q));
+          if (farm) {
+            switchTab('farms');
+            $('farmSearch').value = q;
+            renderFarmsTable();
+            return;
+          }
+
+          switchTab('sales');
+          $('saleFilterSearch').value = q;
+          renderSalesTable();
+        });
+
+        // Export/Import
+        $('exportData').addEventListener('click', () => {
+          const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'alrehman_farms_complete.json';
+          a.click();
+        });
+
+        $('importDataBtn').addEventListener('click', () => $('importFile').click());
+
+        $('importFile').addEventListener('change', async e => {
+          const f = e.target.files[0];
+          if (!f) return;
+
+          const r = new FileReader();
+          r.onload = async () => {
+            try {
+              const obj = JSON.parse(r.result);
+              if (obj && typeof obj === 'object') {
+                if (Array.isArray(obj.farms) && Array.isArray(obj.artis) &&
+                  Array.isArray(obj.sales) && Array.isArray(obj.receipts)) {
+                  state = obj;
+                  await saveState();
+                  alert('Data imported successfully!');
+                } else {
+                  alert('Invalid file format: missing required arrays');
+                }
+              } else {
+                alert('Invalid file format');
+              }
+            } catch (err) {
+              alert('Invalid JSON file');
+            }
+          };
+          r.readAsText(f);
+          e.target.value = '';
+        });
+
+        // Forms
+        // Farms
+        $('saveFarm').addEventListener('click', async () => {
+          const id = $('farmId').value || uid('farm');
+          const name = $('farmName').value.trim();
+          if (!name) {
+            alert('Farm name is required');
+            return;
+          }
+
+          const loc = $('farmLocation').value.trim();
+          const total = num($('farmTotalBirds').value);
+
+          const existingIndex = state.farms.findIndex(f => f.id === id);
+          if (existingIndex >= 0) {
+            state.farms[existingIndex] = {
+              ...state.farms[existingIndex],
+              name,
+              location: loc,
+              totalBirds: total
+            };
+          } else {
+            state.farms.push({
+              id,
+              name,
+              location: loc,
+              totalBirds: total,
+              soldBirds: 0
+            });
+          }
+
+          ['farmId', 'farmName', 'farmLocation', 'farmTotalBirds'].forEach(i => $(i).value = '');
+          await saveState();
+          highlightElement('kpiFarms');
+        });
+
+        $('clearFarm').addEventListener('click', () => {
+          ['farmId', 'farmName', 'farmLocation', 'farmTotalBirds'].forEach(i => $(i).value = '');
+        });
+
+        $('farmSearch').addEventListener('input', renderFarmsTable);
+
+        // Artis
+        $('saveArti').addEventListener('click', async () => {
+          const id = $('artiId').value || uid('arti');
+          const name = $('artiName').value.trim();
+          if (!name) {
+            alert('Arti name is required');
+            return;
+          }
+
+          const contact = $('artiContact').value.trim();
+
+          const existingIndex = state.artis.findIndex(a => a.id === id);
+          if (existingIndex >= 0) {
+            state.artis[existingIndex] = {
+              ...state.artis[existingIndex],
+              name,
+              contact
+            };
+          } else {
+            state.artis.push({
+              id,
+              name,
+              contact
+            });
+          }
+
+          ['artiId', 'artiName', 'artiContact'].forEach(i => $(i).value = '');
+          await saveState();
+          highlightElement('kpiArtis');
+        });
+
+        $('clearArti').addEventListener('click', () => {
+          ['artiId', 'artiName', 'artiContact'].forEach(i => $(i).value = '');
+        });
+
+        $('artiSearch').addEventListener('input', renderArtisTable);
+
+        // Sales
+        $('saleNet').addEventListener('input', calculateSaleAmount);
+        $('saleRate').addEventListener('input', calculateSaleAmount);
+
+        function calculateSaleAmount() {
+          const net = num($('saleNet').value);
+          const rate = num($('saleRate').value);
+          $('saleAmount').value = fmt(net * rate);
+        }
+
+        $('saveSale').addEventListener('click', async () => {
+          const id = $('saleId').value || uid('sale');
+          const date = $('saleDate').value;
+          if (!date) {
+            alert('Date is required');
+            return;
+          }
+
+          const farmId = $('saleFarm').value;
+          if (!farmId) {
+            alert('Please select a farm');
+            return;
+          }
+
+          const artiId = $('saleArti').value;
+          if (!artiId) {
+            alert('Please select an arti');
+            return;
+          }
+
+          const vehicle = $('saleVehicle').value.trim();
+          const crates = num($('saleCrates').value);
+          const birds = num($('saleBirds').value);
+          const weight = num($('saleWeight').value);
+          const katoti = num($('saleKatoti').value);
+          const net = num($('saleNet').value);
+          const rate = num($('saleRate').value);
+          let amount = num($('saleAmount').value);
+
+          if (amount === 0) amount = net * rate;
+
+          const existingIndex = state.sales.findIndex(s => s.id === id);
+          const existing = existingIndex >= 0 ? state.sales[existingIndex] : null;
+
+          if (existing) {
+            const oldFarm = state.farms.find(f => f.id === existing.farmId);
+            if (oldFarm) {
+              oldFarm.soldBirds = Math.max(0, (oldFarm.soldBirds || 0) - (existing.birds || 0));
+            }
+
+            const newFarm = state.farms.find(f => f.id === farmId);
+            if (newFarm) {
+              newFarm.soldBirds = (newFarm.soldBirds || 0) + birds;
+            }
+
+            state.sales[existingIndex] = {
+              ...existing,
+              date,
+              farmId,
+              vehicle,
+              crates,
+              birds,
+              weight,
+              katoti,
+              net,
+              rate,
+              amount,
+              artiId
+            };
+          } else {
+            state.sales.push({
+              id,
+              date,
+              farmId,
+              vehicle,
+              crates,
+              birds,
+              weight,
+              katoti,
+              net,
+              rate,
+              amount,
+              artiId
+            });
+
+            const farm = state.farms.find(f => f.id === farmId);
+            if (farm) {
+              farm.soldBirds = (farm.soldBirds || 0) + birds;
+            }
+          }
+
+          ['saleId', 'saleVehicle', 'saleCrates', 'saleBirds', 'saleWeight', 'saleKatoti', 'saleNet', 'saleRate', 'saleAmount'].forEach(i => $(i).value = '');
+          $('saleDate').value = nowDate();
+          await saveState();
+          highlightElement('kpiSales');
+          highlightElement('kpiReceivables');
+        });
+
+        $('clearSale').addEventListener('click', () => {
+          ['saleId', 'saleVehicle', 'saleCrates', 'saleBirds', 'saleWeight', 'saleKatoti', 'saleNet', 'saleRate', 'saleAmount'].forEach(i => $(i).value = '');
+          $('saleDate').value = nowDate();
+        });
+
+        $('applySaleFilter').addEventListener('click', renderSalesTable);
+        $('resetSaleFilter').addEventListener('click', () => {
+          $('saleFilterSearch').value = '';
+          $('saleFrom').value = nowDate();
+          $('saleTo').value = nowDate();
+          renderSalesTable();
+        });
+
+        // Receipts
+        $('saveRec').addEventListener('click', async () => {
+          const id = uid('rec');
+          const date = $('recDate').value;
+          const artiId = $('recArti').value;
+          if (!artiId) {
+            alert('Please select an arti');
+            return;
+          }
+
+          const amount = num($('recAmount').value);
+          if (amount <= 0) {
+            alert('Amount must be greater than 0');
+            return;
+          }
+
+          const mode = $('recMode').value;
+
+          state.receipts.push({
+            id,
+            date,
+            artiId,
+            amount,
+            mode
+          });
+
+          ['recAmount'].forEach(i => $(i).value = '');
+          await saveState();
+          highlightElement('kpiPayments');
+          highlightElement('kpiReceivables');
+        });
+
+        $('clearRec').addEventListener('click', () => {
+          ['recArti', 'recAmount'].forEach(i => $(i).value = '');
+        });
+
+        // Reports
+        $('runReport').addEventListener('click', runReport);
+        $('exportCsv').addEventListener('click', exportReportCSV);
+        $('reportSearch').addEventListener('input', runReport);
+        $('reportType').addEventListener('change', runReport);
+
+        // Refresh buttons
+        $('refreshAging').addEventListener('click', () => {
+          renderDashboard();
+          highlightElement('agingSummary');
+        });
+
+        $('refreshReceivables').addEventListener('click', () => {
+          renderReceivables();
+        });
+
+        $('exportAging').addEventListener('click', exportAgingReport);
+
+        $('receivablesSearch').addEventListener('input', renderReceivables);
+
+        // Render the application
+        renderAll();
+
+        // Set default tab
+        switchTab('dashboard');
+      }
+
+      // Start the application
+      init();
+    })();
+  </script>
 </body>
 </html>
-
-
