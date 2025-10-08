@@ -2,72 +2,485 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Farm Management Dashboard</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Farm Report Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+      background: #f9f9f9;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #controls, #searchPanel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    input[type="file"], input[type="date"], input[type="password"] {
+      padding: 8px;
+      font-size: 14px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      background: white;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr.date-separator td {
+      border-top: 3px solid #333;
+      padding-top: 20px;
+      background-color: #f0f0f0;
+    }
+    tr.total-row td {
+      font-weight: bold;
+      background-color: #e2e2e2;
+    }
+    #editPanel {
+      max-width: 600px;
+      margin: 20px auto;
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      display: none;
+    }
+    #editPanel label {
+      display: block;
+      margin-top: 10px;
+    }
+    #editPanel input[type="text"], #editPanel input[type="number"], #editPanel input[type="date"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+    #message {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+    }
+    @media print {
+      #controls, #searchPanel, #editPanel, #message {
+        display: none !important;
+      }
+      table {
+        page-break-inside: avoid;
+        width: 100%;
+        font-size: 12pt;
+      }
+      tr.date-separator td {
+        border-top: 5px solid black !important;
+        padding-top: 30px !important;
+        background: white !important;
+      }
+    }
+  </style>
 </head>
 <body>
-  <header>
-    <h1>Farm Management Dashboard</h1>
-    <nav>
-      <button id="dashboardBtn">Dashboard</button>
-      <button id="salesFormBtn">Sales Entry</button>
-      <button id="agingReportBtn">Aging Report</button>
-      <button id="customersBtn">Customers</button>
-      <button id="exportBackupBtn">Export Backup</button>
-    </nav>
-  </header>
 
-  <main id="mainContent">
-    <section id="salesFormSection" class="panel">
-      <h2>Sales Entry Form</h2>
-      <form id="salesForm">
-        <label>Date: <input type="date" id="date" required></label>
-        <label>Farm Name: <input type="text" id="farmName" required></label>
-        <label>Vehicle No: <input type="text" id="vehicleNo" required></label>
-        <label>Crate No: <input type="number" id="crateNo" required></label>
-        <label>Total Birds: <input type="number" id="totalBirds" required></label>
-        <label>Kanta Weight (kg): <input type="number" id="kantaWeight" step="0.01" required></label>
-        <label>Katoti Mode:
-          <select id="katotiMode">
-            <option value="0.50">0.50</option>
-            <option value="0.75">0.75</option>
-            <option value="manual">Manual</option>
-          </select>
-        </label>
-        <label>Manual Katoti (if manual selected): <input type="number" id="manualKatoti" step="0.01"></label>
-        <label>Rate (Rs/kg): <input type="number" id="rate" step="0.01" required></label>
-        <button type="submit">Save Sale</button>
-      </form>
+  <h1>Farm Report Generator</h1>
 
-      <div id="calcResults">
-        <p>Katoti: <span id="katotiVal">0</span> kg</p>
-        <p>Net Weight: <span id="netWeightVal">0</span> kg</p>
-        <p>Average Weight: <span id="avgWeightVal">0</span> kg/bird</p>
-        <p>Total: Rs <span id="totalVal">0</span></p>
-      </div>
-    </section>
+  <!-- Controls -->
+  <div id="controls">
+    <input type="file" id="fileInput" accept=".json" />
+    <button id="uploadBtn">Upload JSON</button>
+    <button id="printBtn" disabled>Print / Save PDF</button>
+  </div>
 
-    <section id="agingReportSection" class="panel hidden">
-      <h2>Aging Report</h2>
-      <label>Search Customer: <input type="text" id="searchCustomer"></label>
-      <button id="generateReportBtn">Generate Report</button>
-      <table id="agingTable">
-        <thead>
-          <tr><th>Customer</th><th>Invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th>Days Due</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+  <!-- Search panel -->
+  <div id="searchPanel">
+    <label>
+      From Date: <input type="date" id="fromDate" />
+    </label>
+    <label>
+      To Date: <input type="date" id="toDate" />
+    </label>
+    <button id="searchBtn" disabled>Search Report</button>
+  </div>
 
-    <section id="customersSection" class="panel hidden">
-      <h2>Customers & Accounts</h2>
-      <button id="addCustomerBtn">Add Customer</button>
-      <div id="customersList"></div>
-    </section>
-  </main>
+  <!-- Report table -->
+  <table id="reportTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>DATE</th>
+        <th>FARM NAME</th>
+        <th>333</th>
+        <th>332</th>
+        <th>331</th>
+        <th>330</th>
+        <th>313-B</th>
+        <th>ACTIONS</th>
+      </tr>
+    </thead>
+    <tbody id="reportBody"></tbody>
+    <tfoot id="reportFooter"></tfoot>
+  </table>
 
-  <script src="app.js"></script>
+  <!-- Edit Panel -->
+  <div id="editPanel">
+    <h3>Edit Entry (Password required)</h3>
+    <label>Password: <input type="password" id="adminPassword" /></label>
+    <label>Date: <input type="date" id="editDate" /></label>
+    <label>Farm Name: <input type="text" id="editFarm" /></label>
+    <label>333: <input type="number" id="edit333" min="0" /></label>
+    <label>332: <input type="number" id="edit332" min="0" /></label>
+    <label>331: <input type="number" id="edit331" min="0" /></label>
+    <label>330: <input type="number" id="edit330" min="0" /></label>
+    <label>313-B: <input type="number" id="edit313b" min="0" /></label>
+    <button id="saveEditBtn">Save Changes</button>
+    <button id="cancelEditBtn">Cancel</button>
+    <div id="message"></div>
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Supabase Initialization
+    const supabaseUrl = 'https://stbfwvkefvmpoudgoawf.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0YmZ3dmtlZnZtcG91ZGdvYXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4ODg0MDEsImV4cCI6MjA3NTQ2NDQwMX0.-dyYLle7l08xzRShcLVKjcBGw3Qo4cD3DItJn0mJPp0';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Globals
+    let reportData = [];
+    let filteredData = [];
+    let editingEntry = null;
+
+    // Elements
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const printBtn = document.getElementById('printBtn');
+    const reportTable = document.getElementById('reportTable');
+    const reportBody = document.getElementById('reportBody');
+    const reportFooter = document.getElementById('reportFooter');
+    const fromDateInput = document.getElementById('fromDate');
+    const toDateInput = document.getElementById('toDate');
+    const searchBtn = document.getElementById('searchBtn');
+    const editPanel = document.getElementById('editPanel');
+    const adminPasswordInput = document.getElementById('adminPassword');
+    const editDateInput = document.getElementById('editDate');
+    const editFarmInput = document.getElementById('editFarm');
+    const edit333Input = document.getElementById('edit333');
+    const edit332Input = document.getElementById('edit332');
+    const edit331Input = document.getElementById('edit331');
+    const edit330Input = document.getElementById('edit330');
+    const edit313bInput = document.getElementById('edit313b');
+    const saveEditBtn = document.getElementById('saveEditBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const messageDiv = document.getElementById('message');
+
+    // === FUNCTIONS ===
+
+    function resetEditPanel() {
+      adminPasswordInput.value = '';
+      editDateInput.value = '';
+      editFarmInput.value = '';
+      edit333Input.value = '';
+      edit332Input.value = '';
+      edit331Input.value = '';
+      edit330Input.value = '';
+      edit313bInput.value = '';
+      messageDiv.textContent = '';
+      editingEntry = null;
+      editPanel.style.display = 'none';
+    }
+
+    function renderReport(data) {
+      if (!data.length) {
+        reportTable.style.display = 'none';
+        printBtn.disabled = true;
+        searchBtn.disabled = true;
+        return;
+      }
+
+      reportBody.innerHTML = '';
+      reportFooter.innerHTML = '';
+      let prevDate = null;
+
+      // Totals
+      let totals = { '333': 0, '332': 0, '331': 0, '330': 0, '313-B': 0 };
+
+      data.forEach(entry => {
+        // Add separator if date changes
+        const tr = document.createElement('tr');
+        if (entry.date !== prevDate) {
+          tr.classList.add('date-separator');
+          prevDate = entry.date;
+        }
+
+        // Add row data, blank if value is 0 or missing
+        function valOrEmpty(key) {
+          return entry[key] ? entry[key] : '';
+        }
+
+        tr.innerHTML = `
+          <td>${entry.date || ''}</td>
+          <td>${entry.farm || ''}</td>
+          <td>${valOrEmpty('333')}</td>
+          <td>${valOrEmpty('332')}</td>
+          <td>${valOrEmpty('331')}</td>
+          <td>${valOrEmpty('330')}</td>
+          <td>${valOrEmpty('313-B')}</td>
+          <td><button data-id="${entry.id}" class="editBtn">Edit</button></td>
+        `;
+
+        // Add totals
+        ['333','332','331','330','313-B'].forEach(k => {
+          totals[k] += Number(entry[k]) || 0;
+        });
+
+        reportBody.appendChild(tr);
+      });
+
+      // Add totals row at footer
+      const footerRow = document.createElement('tr');
+      footerRow.classList.add('total-row');
+      footerRow.innerHTML = `
+        <td colspan="2">TOTALS</td>
+        <td>${totals['333'] || ''}</td>
+        <td>${totals['332'] || ''}</td>
+        <td>${totals['331'] || ''}</td>
+        <td>${totals['330'] || ''}</td>
+        <td>${totals['313-B'] || ''}</td>
+        <td></td>
+      `;
+      reportFooter.appendChild(footerRow);
+
+      reportTable.style.display = '';
+      printBtn.disabled = false;
+      searchBtn.disabled = false;
+
+      // Attach edit listeners
+      document.querySelectorAll('.editBtn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          const id = btn.getAttribute('data-id');
+          openEdit(id);
+        });
+      });
+    }
+
+    // Open edit panel for entry id
+    function openEdit(id) {
+      const entry = reportData.find(r => r.id == id);
+      if (!entry) return alert('Entry not found');
+
+      editingEntry = entry;
+
+      // Prefill inputs
+      editDateInput.value = entry.date || '';
+      editFarmInput.value = entry.farm || '';
+      edit333Input.value = entry['333'] || '';
+      edit332Input.value = entry['332'] || '';
+      edit331Input.value = entry['331'] || '';
+      edit330Input.value = entry['330'] || '';
+      edit313bInput.value = entry['313-B'] || '';
+
+      adminPasswordInput.value = '';
+      messageDiv.textContent = '';
+      editPanel.style.display = 'block';
+      adminPasswordInput.focus();
+    }
+
+    // Save edited entry to supabase
+    async function saveEdit() {
+      if (!editingEntry) return;
+
+      const password = adminPasswordInput.value.trim();
+      if (password !== '123') {
+        messageDiv.textContent = 'Incorrect password!';
+        return;
+      }
+
+      // Validate required fields
+      if (!editDateInput.value || !editFarmInput.value.trim()) {
+        messageDiv.textContent = 'Date and Farm Name are required.';
+        return;
+      }
+
+      // Prepare updated data
+      const updatedEntry = {
+        date: editDateInput.value,
+        farm: editFarmInput.value.trim(),
+        '333': edit333Input.value ? Number(edit333Input.value) : null,
+        '332': edit332Input.value ? Number(edit332Input.value) : null,
+        '331': edit331Input.value ? Number(edit331Input.value) : null,
+        '330': edit330Input.value ? Number(edit330Input.value) : null,
+        '313-B': edit313bInput.value ? Number(edit313bInput.value) : null,
+      };
+
+      try {
+        const { data, error } = await supabase
+          .from('farm_reports')
+          .update(updatedEntry)
+          .eq('id', editingEntry.id);
+
+        if (error) throw error;
+
+        // Update local data and rerender
+        const idx = reportData.findIndex(r => r.id === editingEntry.id);
+        if (idx !== -1) {
+          reportData[idx] = { id: editingEntry.id, ...updatedEntry };
+        }
+
+        messageDiv.style.color = 'green';
+        messageDiv.textContent = 'Entry updated successfully!';
+        renderReport(filteredData.length ? filteredData : reportData);
+
+        setTimeout(() => {
+          resetEditPanel();
+          messageDiv.style.color = 'red';
+        }, 1500);
+
+      } catch (err) {
+        messageDiv.textContent = 'Error updating entry: ' + err.message;
+      }
+    }
+
+    // Load JSON from file input
+    uploadBtn.addEventListener('click', () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('Please select a JSON file first.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const json = JSON.parse(e.target.result);
+
+          // Expect array or {data: []}
+          let arr = [];
+          if (Array.isArray(json)) {
+            arr = json;
+          } else if (json.data && Array.isArray(json.data)) {
+            arr = json.data;
+          } else {
+            throw new Error('Invalid JSON structure. Expected an array.');
+          }
+
+          // Validate fields and assign fake ids if missing
+          reportData = arr.map((entry, i) => ({
+            id: entry.id || i + 1, // temporary id if missing
+            date: entry.date,
+            farm: entry.farm,
+            '333': entry['333'] || null,
+            '332': entry['332'] || null,
+            '331': entry['331'] || null,
+            '330': entry['330'] || null,
+            '313-B': entry['313-B'] || null,
+          }));
+
+          filteredData = [];
+          renderReport(reportData);
+          searchBtn.disabled = false;
+
+        } catch (err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Search by date range
+    searchBtn.addEventListener('click', () => {
+      const from = fromDateInput.value;
+      const to = toDateInput.value;
+
+      if (!from || !to) {
+        alert('Please select both From and To dates.');
+        return;
+      }
+
+      const filtered = reportData.filter(item => {
+        return item.date >= from && item.date <= to;
+      });
+
+      filteredData = filtered;
+      renderReport(filteredData);
+    });
+
+    // Print/save PDF button
+    printBtn.addEventListener('click', () => {
+      window.print();
+    });
+
+    // Cancel edit
+    cancelEditBtn.addEventListener('click', () => {
+      resetEditPanel();
+    });
+
+    // Save edit
+    saveEditBtn.addEventListener('click', () => {
+      saveEdit();
+    });
+
+    // On page load, try loading existing data from Supabase
+    async function loadFromSupabase() {
+      try {
+        const { data, error } = await supabase
+          .from('farm_reports')
+          .select('*')
+          .order('date', { ascending: true });
+
+        if (error) throw error;
+
+        reportData = data.map(item => ({
+          id: item.id,
+          date: item.date,
+          farm: item.farm,
+          '333': item['333'],
+          '332': item['332'],
+          '331': item['331'],
+          '330': item['330'],
+          '313-B': item['313-B']
+        }));
+
+        filteredData = [];
+        if(reportData.length) {
+          renderReport(reportData);
+          searchBtn.disabled = false;
+          printBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error('Error loading data from Supabase:', err.message);
+      }
+    }
+
+    loadFromSupabase();
+
+  </script>
+
 </body>
 </html>
