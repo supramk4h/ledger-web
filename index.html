@@ -1,303 +1,265 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Farm Report Viewer & Saver</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 1000px;
-      margin: auto;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 25px;
-    }
-    #controls {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    input[type="file"] {
-      padding: 8px;
-      font-size: 14px;
-    }
-    button {
-      background-color: #007bff;
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      cursor: pointer;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      background: white;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      margin-top: 15px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-      font-size: 14px;
-    }
-    th {
-      background-color: #007bff;
-      color: white;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    tr.date-separator td {
-      border-top: 3px solid #333;
-      padding-top: 20px;
-      background-color: #f0f0f0;
-    }
-    tr.total-row td {
-      font-weight: bold;
-      background-color: #e2e2e2;
-    }
-    @media print {
-      #controls {
-        display: none !important;
-      }
-      table {
-        page-break-inside: avoid;
-        font-size: 12pt;
-      }
-      tr.date-separator td {
-        border-top: 5px solid black !important;
-        padding-top: 30px !important;
-        background: white !important;
-      }
-    }
-    #message {
-      text-align: center;
-      margin-top: 15px;
-      color: green;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smooth Minimal Tetris</title>
+<style>
+body {
+    margin:0;
+    font-family:'Segoe UI',sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    min-height:100vh;
+    background: linear-gradient(135deg,#0d1117,#1c1f26);
+    color:#fff;
+}
+.game-wrapper {
+    display:flex;
+    gap:20px;
+    margin-top:20px;
+}
+.tetris-container {
+    position:relative;
+    width:300px;
+    height:600px;
+    background: rgba(255,255,255,0.03);
+    border:2px solid #fff;
+    border-radius:10px;
+    overflow:hidden;
+}
+.block {
+    position:absolute;
+    width:30px;
+    height:30px;
+    border-radius:6px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(2px);
+    transition: top 0.1s linear, left 0.1s linear;
+}
+.sidebar {
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+}
+.box {
+    width:120px;
+    height:120px;
+    background: rgba(255,255,255,0.05);
+    border:2px solid #fff;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:20px;
+    text-align:center;
+}
+.button {
+    padding:10px;
+    border-radius:8px;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+    background:#fff;
+    color:#0d1117;
+}
+.button:hover { background:#e1e1e1; }
+</style>
 </head>
 <body>
 
-  <h1>Farm Report Viewer & Saver</h1>
+<div class="game-wrapper">
+    <div class="tetris-container" id="tetris"></div>
+    <div class="sidebar">
+        <div class="box" id="score">Score: 0</div>
+        <div class="box" id="level">Level: 1</div>
+        <div class="box" id="hold">Hold</div>
+        <div class="box" id="next">Next</div>
+        <button class="button" id="restartBtn">Restart</button>
+        <button class="button" id="pauseBtn">Pause</button>
+    </div>
+</div>
 
-  <div id="controls">
-    <input type="file" id="fileInput" accept=".json" />
-    <button id="uploadBtn">Upload & View JSON</button>
-    <button id="saveBtn" disabled>Save to Cloud</button>
-    <button id="printBtn" disabled>Print / Save PDF</button>
-  </div>
+<script>
+const container = document.getElementById('tetris');
+const scoreDisplay = document.getElementById('score');
+const levelDisplay = document.getElementById('level');
+const nextDisplay = document.getElementById('next');
+const holdDisplay = document.getElementById('hold');
+const restartBtn = document.getElementById('restartBtn');
+const pauseBtn = document.getElementById('pauseBtn');
 
-  <table id="reportTable" style="display:none;">
-    <thead>
-      <tr>
-        <th>DATE</th>
-        <th>FARM NAME</th>
-        <th>333</th>
-        <th>332</th>
-        <th>331</th>
-        <th>330</th>
-        <th>313-B</th>
-      </tr>
-    </thead>
-    <tbody id="reportBody"></tbody>
-    <tfoot id="reportFooter"></tfoot>
-  </table>
+const width = 10;
+const height = 20;
+const blockSize = 30;
 
-  <div id="message"></div>
+let gameBoard = [];
+let score = 0;
+let level = 1;
+let speed = 500;
+let timerId;
+let isPaused = false;
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const supabaseUrl = 'https://stbfwvkefvmpoudgoawf.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0YmZ3dmtlZnZtcG91ZGdvYXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4ODg0MDEsImV4cCI6MjA3NTQ2NDQwMX0.-dyYLle7l08xzRShcLVKjcBGw3Qo4cD3DItJn0mJPp0';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+let currentTetromino;
+let currentPosition;
+let nextTetromino;
+let holdTetromino = null;
+let canHold = true;
 
-    const fileInput = document.getElementById('fileInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const printBtn = document.getElementById('printBtn');
-    const reportTable = document.getElementById('reportTable');
-    const reportBody = document.getElementById('reportBody');
-    const reportFooter = document.getElementById('reportFooter');
-    const messageDiv = document.getElementById('message');
+// Tetromino shapes
+const tetrominoes = [
+    [[0,0],[0,1],[0,2],[1,2]], // L
+    [[0,1],[0,2],[1,0],[1,1]], // Z
+    [[0,1],[1,0],[1,1],[1,2]], // T
+    [[0,0],[0,1],[1,0],[1,1]], // O
+    [[0,1],[1,1],[2,1],[3,1]]  // I
+];
 
-    let reportData = [];
+// ===== INITIALIZE GAME =====
+function initGame(){
+    container.innerHTML = '';
+    gameBoard = Array.from({length:height},()=>Array(width).fill(null));
+    score=0; level=1; speed=500; canHold=true;
+    updateScore(); updateLevel();
+    chooseNextTetromino();
+    spawnTetromino();
+    clearInterval(timerId);
+    timerId = setInterval(gameLoop, speed);
+}
 
-    function renderReport(data) {
-      if (!data.length) {
-        reportTable.style.display = 'none';
-        saveBtn.disabled = true;
-        printBtn.disabled = true;
-        return;
-      }
-      reportBody.innerHTML = '';
-      reportFooter.innerHTML = '';
-      let prevDate = null;
+// ===== SPAWN TETROMINO =====
+function chooseNextTetromino(){
+    const r = Math.floor(Math.random()*tetrominoes.length);
+    nextTetromino = tetrominoes[r].map(c=>[c[0],c[1]]);
+    updateNextDisplay();
+}
 
-      let totals = { '333': 0, '332': 0, '331': 0, '330': 0, '313-B': 0 };
-
-      data.forEach(entry => {
-        const tr = document.createElement('tr');
-        if (entry.date !== prevDate) {
-          tr.classList.add('date-separator');
-          prevDate = entry.date;
-        }
-
-        function valOrEmpty(key) {
-          return entry[key] ? entry[key] : '';
-        }
-
-        tr.innerHTML = `
-          <td>${entry.date || ''}</td>
-          <td>${entry.farm || ''}</td>
-          <td>${valOrEmpty('333')}</td>
-          <td>${valOrEmpty('332')}</td>
-          <td>${valOrEmpty('331')}</td>
-          <td>${valOrEmpty('330')}</td>
-          <td>${valOrEmpty('313-B')}</td>
-        `;
-
-        ['333','332','331','330','313-B'].forEach(k => {
-          totals[k] += Number(entry[k]) || 0;
-        });
-
-        reportBody.appendChild(tr);
-      });
-
-      const footerRow = document.createElement('tr');
-      footerRow.classList.add('total-row');
-      footerRow.innerHTML = `
-        <td colspan="2">TOTALS</td>
-        <td>${totals['333'] || ''}</td>
-        <td>${totals['332'] || ''}</td>
-        <td>${totals['331'] || ''}</td>
-        <td>${totals['330'] || ''}</td>
-        <td>${totals['313-B'] || ''}</td>
-      `;
-      reportFooter.appendChild(footerRow);
-
-      reportTable.style.display = '';
-      saveBtn.disabled = false;
-      printBtn.disabled = false;
+function spawnTetromino(){
+    currentTetromino = nextTetromino.map(c=>[c[0],c[1]]);
+    currentPosition = {x:3, y:0};
+    chooseNextTetromino();
+    canHold = true;
+    if(collision(currentTetromino, currentPosition)){
+        clearInterval(timerId);
+        alert('Game Over! Score: '+score);
     }
+    draw();
+}
 
-    uploadBtn.addEventListener('click', () => {
-      const file = fileInput.files[0];
-      if (!file) {
-        alert('Please select a JSON file.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const json = JSON.parse(e.target.result);
-          let arr = [];
-          if (Array.isArray(json)) {
-            arr = json;
-          } else if (json.data && Array.isArray(json.data)) {
-            arr = json.data;
-          } else {
-            throw new Error('JSON must be an array or have a data array property.');
-          }
-
-          // Assign temp ids for saving (not used here but good to keep)
-          reportData = arr.map((entry, i) => ({
-            date: entry.date,
-            farm: entry.farm,
-            '333': entry['333'] || null,
-            '332': entry['332'] || null,
-            '331': entry['331'] || null,
-            '330': entry['330'] || null,
-            '313-B': entry['313-B'] || null,
-          }));
-
-          renderReport(reportData);
-          messageDiv.textContent = 'JSON loaded. Ready to save or print.';
-          messageDiv.style.color = 'green';
-
-        } catch(err) {
-          alert('Invalid JSON file: ' + err.message);
+// ===== DRAWING =====
+function draw(){
+    container.innerHTML='';
+    for(let y=0;y<height;y++){
+        for(let x=0;x<width;x++){
+            if(gameBoard[y][x]) drawBlock(x,y);
         }
-      };
-      reader.readAsText(file);
-    });
-
-    // Save all data to supabase - deletes existing then inserts new
-    saveBtn.addEventListener('click', async () => {
-      if (!reportData.length) return alert('No data to save.');
-
-      messageDiv.textContent = 'Saving data to cloud... Please wait.';
-      messageDiv.style.color = 'black';
-
-      try {
-        // Delete all existing data
-        let { error: delErr } = await supabase.from('farm_reports').delete().neq('id', 0);
-        if (delErr) throw delErr;
-
-        // Insert new data
-        let { error: insErr } = await supabase.from('farm_reports').insert(reportData);
-        if (insErr) throw insErr;
-
-        messageDiv.textContent = 'Data saved successfully!';
-        messageDiv.style.color = 'green';
-
-      } catch(err) {
-        messageDiv.textContent = 'Error saving data:
-        messageDiv.textContent = 'Error saving data: ' + err.message;
-        messageDiv.style.color = 'red';
-      }
-    });
-
-    // Print button
-    printBtn.addEventListener('click', () => {
-      window.print();
-    });
-
-    // On page load: load any existing data from Supabase
-    async function loadDataFromCloud() {
-      messageDiv.textContent = 'Loading data from cloud...';
-      messageDiv.style.color = 'black';
-
-      try {
-        let { data, error } = await supabase
-          .from('farm_reports')
-          .select('*')
-          .order('date', { ascending: true });
-
-        if (error) throw error;
-
-        if (data && data.length) {
-          reportData = data;
-          renderReport(reportData);
-          messageDiv.textContent = 'Loaded data from cloud.';
-          messageDiv.style.color = 'green';
-          saveBtn.disabled = false;
-          printBtn.disabled = false;
-        } else {
-          messageDiv.textContent = 'No data found in cloud. Upload JSON to begin.';
-          messageDiv.style.color = 'gray';
-        }
-      } catch (err) {
-        messageDiv.textContent = 'Error loading data: ' + err.message;
-        messageDiv.style.color = 'red';
-      }
     }
+    currentTetromino.forEach(([dy,dx])=>{
+        const x = currentPosition.x + dx;
+        const y = currentPosition.y + dy;
+        if(y>=0) drawBlock(x,y);
+    });
+}
 
-    // Load data on start
-    loadDataFromCloud();
-  </script>
+function drawBlock(x,y){
+    const block = document.createElement('div');
+    block.classList.add('block');
+    block.style.left = x*blockSize + 'px';
+    block.style.top = y*blockSize + 'px';
+    container.appendChild(block);
+}
+
+// ===== COLLISION =====
+function collision(tet,pos){
+    for(let [dy,dx] of tet){
+        const x = pos.x + dx;
+        const y = pos.y + dy;
+        if(x<0 || x>=width || y>=height) return true;
+        if(y>=0 && gameBoard[y][x]) return true;
+    }
+    return false;
+}
+
+// ===== MOVE =====
+function moveDown(){
+    currentPosition.y++;
+    if(collision(currentTetromino,currentPosition)){
+        currentPosition.y--;
+        freeze();
+        return;
+    }
+    draw();
+}
+function moveLeft(){currentPosition.x--; if(collision(currentTetromino,currentPosition)) currentPosition.x++; draw();}
+function moveRight(){currentPosition.x++; if(collision(currentTetromino,currentPosition)) currentPosition.x--; draw();}
+function rotate(){const newShape=currentTetromino.map(([y,x])=>[x,-y]); const old=currentTetromino; currentTetromino=newShape; if(collision(currentTetromino,currentPosition)) currentTetromino=old; draw();}
+
+// ===== FREEZE =====
+function freeze(){
+    currentTetromino.forEach(([dy,dx])=>{
+        const x = currentPosition.x+dx;
+        const y = currentPosition.y+dy;
+        if(y>=0) gameBoard[y][x]=true;
+    });
+    clearLines();
+    spawnTetromino();
+}
+
+// ===== CLEAR LINES =====
+function clearLines(){
+    let lines=0;
+    for(let y=height-1;y>=0;y--){
+        if(gameBoard[y].every(c=>c)){
+            gameBoard.splice(y,1);
+            gameBoard.unshift(Array(width).fill(null));
+            lines++;
+            y++;
+        }
+    }
+    if(lines>0){
+        score+=lines*10;
+        level=Math.floor(score/100)+1;
+        updateScore();
+        updateLevel();
+        clearInterval(timerId);
+        timerId=setInterval(gameLoop, Math.max(100, speed-(level-1)*30));
+    }
+}
+
+// ===== SCORE/LEVEL/HOLD/NEXT =====
+function updateScore(){scoreDisplay.textContent='Score: '+score;}
+function updateLevel(){levelDisplay.textContent='Level: '+level;}
+function updateNextDisplay(){nextDisplay.textContent='Next';}
+function hold(){
+    if(!canHold) return;
+    if(!holdTetromino){holdTetromino=currentTetromino.map(c=>[c[0],c[1]]); spawnTetromino();}
+    else {[currentTetromino,holdTetromino]=[holdTetromino,currentTetromino]; currentPosition={x:3,y:0};}
+    canHold=false;
+    holdDisplay.textContent='Hold';
+}
+
+// ===== GAME LOOP =====
+function gameLoop(){if(!isPaused) moveDown();}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowLeft') moveLeft();
+    else if(e.key==='ArrowRight') moveRight();
+    else if(e.key==='ArrowDown') moveDown();
+    else if(e.key==='ArrowUp') rotate();
+    else if(e.key==='c' || e.key==='C') hold();
+    else if(e.key==='p' || e.key==='P') togglePause();
+});
+
+// ===== BUTTONS =====
+restartBtn.addEventListener('click', initGame);
+pauseBtn.addEventListener('click', togglePause);
+function togglePause(){isPaused=!isPaused; pauseBtn.textContent=isPaused?'Resume':'Pause';}
+
+// ===== START =====
+initGame();
+</script>
 </body>
 </html>
